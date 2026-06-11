@@ -1,118 +1,101 @@
 import msal
 import requests
 from datetime import datetime
-import os
 
-print("ExcelMailSync iniciado (App-Only)")
+print("ExcelMailSync iniciado (Delegated)")
 
 # ======================
-# CONFIG desde GitHub Secrets
+# CONFIG
 # ======================
-CLIENT_ID = os.environ["CLIENT_ID"]
-TENANT_ID = os.environ["TENANT_ID"]
-CLIENT_SECRET = os.environ["CLIENT_SECRET"]
-USER_ID = os.environ["USER_ID"]
-
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPES = ["https://graph.microsoft.com/.default"]
+CLIENT_ID = "<CLIENT_ID>"  # o desde env
+TENANT_ID = "consumers"    # o tu tenant
+SCOPES = ["User.Read", "Mail.Read", "Files.ReadWrite.All"]
 
 EXCEL_FILE_NAME = "EXCELMAIL.xlsx"
 TABLE_NAME = "Tabla1"
 
 # ======================
-# AUTH (Client Credentials)
+# LOGIN MSAL (Device Flow)
 # ======================
-app = msal.ConfidentialClientApplication(
+app = msal.PublicClientApplication(
     CLIENT_ID,
-    authority=AUTHORITY,
-    client_credential=CLIENT_SECRET
+    authority=f"https://login.microsoftonline.com/{TENANT_ID}"
 )
 
-result = app.acquire_token_for_client(scopes=SCOPES)
+flow = app.initiate_device_flow(scopes=SCOPES)
+if "user_code" not in flow:
+    raise SystemExit(flow)
+
+print("👉 Ve a:", flow["verification_uri"])
+print("👉 Código:", flow["user_code"])
+
+result = app.acquire_token_by_device_flow(flow)
 
 if "access_token" not in result:
-    raise SystemExit(f"Error obteniendo token: {result}")
+    raise SystemExit("Error obteniendo token")
 
 token = result["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
+
 print("Access token OK")
 
 # ======================
 # OBTENER CARPETAS
 # ======================
-def get_all_mailfolders(user_id, headers):
-    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders?$top=100"
-    folder_map = {}
-    while url:
-        resp = requests.get(url, headers=headers)
-        print("MAILFOLDERS STATUS:", resp.status_code)
-        if resp.status_code != 200:
-            print("MAILFOLDERS RESPONSE:", resp.text)
-            resp.raise_for_status()
-        data = resp.json()
-        for f in data.get("value", []):
-            folder_map[f["id"]] = f["displayName"]
-            if f.get("childFolderCount", 0) > 0:
-                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
-                folder_map.update(child_map)
-        url = data.get("@odata.nextLink")
-    return folder_map
+folder_map = {}
+folders_url = "https://graph.microsoft.com/v1.0/me/mailFolders?$top=100"
 
-def get_all_mailfolders_recursive(user_id, parent_id, headers):
-    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders/{parent_id}/childFolders?$top=100"
-    folder_map = {}
-    while url:
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            resp.raise_for_status()
-        data = resp.json()
-        for f in data.get("value", []):
-            folder_map[f["id"]] = f["displayName"]
-            if f.get("childFolderCount", 0) > 0:
-                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
-                folder_map.update(child_map)
-        url = data.get("@odata.nextLink")
-    return folder_map
+resp = requests.get(folders_url, headers=headers)
+if resp.status_code != 200:
+    print("Error carpetas:", resp.status_code, resp.text)
+    raise SystemExit()
 
-folder_map = get_all_mailfolders(USER_ID, headers)
-print("Carpetas obtenidas:", len(folder_map))
+for f in resp.json().get("value", []):
+    folder_map[f["id"]] = f["displayName"]
+
+print("Carpetas cargadas:", len(folder_map))
 
 # ======================
 # OBTENER EMAILS
 # ======================
-emails_url = (
-    f"https://graph.microsoft.com/v1.0/users/{USER_ID}/messages"
+url_emails = (
+    "https://graph.microsoft.com/v1.0/me/messages"
     "?$top=100"
     "&$orderby=receivedDateTime desc"
     "&$select=receivedDateTime,from,subject,bodyPreview,parentFolderId"
 )
-resp = requests.get(emails_url, headers=headers)
+
+resp = requests.get(url_emails, headers=headers)
 if resp.status_code != 200:
-    print(resp.text)
-    raise SystemExit("Error al obtener emails")
+    print("Error emails:", resp.status_code, resp.text)
+    raise SystemExit()
+
 emails = resp.json().get("value", [])
-print("Emails obtenidos:", len(emails))
+print(f"Emails obtenidos: {len(emails)}")
 
 # ======================
-# LOCALIZAR EXCEL EN ONEDRIVE
+# BUSCAR EXCEL EN ONEDRIVE
 # ======================
-drive_url = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/root/children"
-resp = requests.get(drive_url, headers=headers)
+url_drive = "https://graph.microsoft.com/v1.0/me/drive/root/children"
+resp = requests.get(url_drive, headers=headers)
 if resp.status_code != 200:
     print(resp.text)
-    raise SystemExit("Error al listar archivos OneDrive")
+    raise SystemExit("Error listando OneDrive")
+
 files = resp.json().get("value", [])
 file_id = next((f["id"] for f in files if f["name"] == EXCEL_FILE_NAME), None)
 if not file_id:
     raise SystemExit(f"{EXCEL_FILE_NAME} no encontrado")
-print("FILE ID encontrado:", file_id)
+
+print(f"FILE ID: {file_id}")
 
 # ======================
 # PREPARAR FILAS
 # ======================
 rows = []
 for email in emails:
-    folder_name = folder_map.get(email.get("parentFolderId"), "DESCONOCIDA")
+    folder_id = email.get("parentFolderId")
+    folder_name = folder_map.get(folder_id, "DESCONOCIDA")
     fecha = datetime.strptime(email.get("receivedDateTime"), "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
     rows.append([
         fecha,
@@ -123,12 +106,12 @@ for email in emails:
     ])
 
 # ======================
-# INSERTAR FILAS EN EXCEL ONLINE
+# INSERTAR FILAS EN TABLA
 # ======================
-url_add_rows = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
-resp = requests.post(url_add_rows, headers={**headers, "Content-Type": "application/json"}, json={"values": rows})
+url_add = f"https://graph.microsoft.com/v1.0/me/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
+resp = requests.post(url_add, headers={**headers, "Content-Type": "application/json"}, json={"values": rows})
 if resp.status_code not in (200, 201):
     print(resp.text)
-    raise SystemExit("Error al insertar filas en Excel")
+    raise SystemExit("Error insertando filas en Excel")
 
 print("✔ Sincronización completada correctamente")
