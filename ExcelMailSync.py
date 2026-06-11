@@ -28,8 +28,6 @@ print("AUTHORITY:", AUTHORITY)
 EXCEL_FILE_NAME = "EXCELMAIL.xlsx"
 TABLE_NAME = "Tabla1"
 
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-
 SCOPES = ["https://graph.microsoft.com/.default"]
 
 # ======================
@@ -54,18 +52,38 @@ print("Access token OK")
 # ======================
 # CARPETAS
 # ======================
-folder_map = {}
+def get_all_mailfolders(user_id, headers):
+    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders?$top=100"
+    folder_map = {}
+    
+    while url:
+        resp = requests.get(url, headers=headers)
+        data = resp.json()
+        for f in data.get("value", []):
+            folder_map[f["id"]] = f["displayName"]
+            # Si hay subcarpetas, hacer recursivo
+            if f.get("childFolderCount", 0) > 0:
+                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
+                folder_map.update(child_map)
+        url = data.get("@odata.nextLink")
+    return folder_map
 
-USER_ID = "9017f3a7-dcf2-4475-adff-cc5b4661df93"
-folders_url = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/mailFolders?$top=100"
-resp_folders = requests.get(folders_url, headers=headers)
+def get_all_mailfolders_recursive(user_id, parent_id, headers):
+    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders/{parent_id}/childFolders?$top=100"
+    folder_map = {}
+    while url:
+        resp = requests.get(url, headers=headers)
+        data = resp.json()
+        for f in data.get("value", []):
+            folder_map[f["id"]] = f["displayName"]
+            if f.get("childFolderCount", 0) > 0:
+                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
+                folder_map.update(child_map)
+        url = data.get("@odata.nextLink")
+    return folder_map
 
-if resp_folders.status_code == 200:
-    folders = resp_folders.json().get("value", [])
-    for f in folders:
-        folder_map[f["id"]] = f["displayName"]
-
-print("Carpetas cargadas:", len(folder_map))
+# Uso:
+folder_map = get_all_mailfolders(USER_ID, headers)
 
 # ======================
 # EMAILS
