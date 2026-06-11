@@ -55,17 +55,30 @@ print("Access token OK")
 def get_all_mailfolders(user_id, headers):
     url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders?$top=100"
     folder_map = {}
-    
+
     while url:
         resp = requests.get(url, headers=headers)
+
+        print("MAILFOLDERS STATUS:", resp.status_code)
+        print("MAILFOLDERS RESPONSE:", resp.text[:1000])
+
+        resp.raise_for_status()
+
         data = resp.json()
+
         for f in data.get("value", []):
             folder_map[f["id"]] = f["displayName"]
-            # Si hay subcarpetas, hacer recursivo
+
             if f.get("childFolderCount", 0) > 0:
-                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
+                child_map = get_all_mailfolders_recursive(
+                    user_id,
+                    f["id"],
+                    headers
+                )
                 folder_map.update(child_map)
+
         url = data.get("@odata.nextLink")
+
     return folder_map
 
 def get_all_mailfolders_recursive(user_id, parent_id, headers):
