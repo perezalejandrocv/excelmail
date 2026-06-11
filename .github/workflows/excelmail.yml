@@ -2,28 +2,21 @@ name: ExcelMailSync
 
 on:
   schedule:
-    - cron: "0 * * * *"   # cada hora
-  workflow_dispatch:      # ejecución manual opcional
+    - cron: "0 * * * *"  # cada hora
+  workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install msal requests
-
-      - name: Run script
+      - run: pip install msal requests
+      - run: python ExcelMailSync.py
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-        run: python ExcelMailSync.py
+          USER_ID: ${{ secrets.USER_ID }}   # ObjectId del mailbox interno
