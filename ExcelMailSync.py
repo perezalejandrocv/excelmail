@@ -12,6 +12,19 @@ CLIENT_ID = os.environ["CLIENT_ID"]
 TENANT_ID = os.environ["TENANT_ID"]
 CLIENT_SECRET = os.environ["CLIENT_SECRET"]
 
+USER_ID = "9017f3a7-dcf2-4475-adff-cc5b4661df93"
+
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+
+print("CLIENT_ID OK:", bool(CLIENT_ID))
+print("TENANT_ID OK:", bool(TENANT_ID))
+print("CLIENT_SECRET OK:", bool(CLIENT_SECRET))
+print("AUTHORITY:", AUTHORITY)
+
+
+
+
+
 EXCEL_FILE_NAME = "EXCELMAIL.xlsx"
 TABLE_NAME = "Tabla1"
 
@@ -43,7 +56,8 @@ print("Access token OK")
 # ======================
 folder_map = {}
 
-folders_url = "https://graph.microsoft.com/v1.0/me/mailFolders?$top=100"
+USER_ID = "9017f3a7-dcf2-4475-adff-cc5b4661df93"
+folders_url = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/mailFolders?$top=100"
 resp_folders = requests.get(folders_url, headers=headers)
 
 if resp_folders.status_code == 200:
@@ -57,7 +71,7 @@ print("Carpetas cargadas:", len(folder_map))
 # EMAILS
 # ======================
 url = (
-    "https://graph.microsoft.com/v1.0/me/messages"
+    f"https://graph.microsoft.com/v1.0/users/{USER_ID}/messages"
     "?$top=100"
     "&$orderby=receivedDateTime desc"
     "&$select=receivedDateTime,from,subject,bodyPreview,parentFolderId"
@@ -74,7 +88,7 @@ print("Emails obtenidos:", len(emails))
 # ======================
 # ONEDRIVE FILE
 # ======================
-url_drive = "https://graph.microsoft.com/v1.0/me/drive/root/children"
+url_drive = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/root/children"
 resp = requests.get(url_drive, headers=headers)
 
 files = resp.json().get("value", [])
@@ -114,7 +128,7 @@ for email in emails:
 # ======================
 # INSERT EXCEL
 # ======================
-url_add = f"https://graph.microsoft.com/v1.0/me/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
+url_add = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
 
 payload = {"values": rows}
 
