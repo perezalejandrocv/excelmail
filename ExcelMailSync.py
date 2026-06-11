@@ -3,6 +3,12 @@ import requests
 from datetime import datetime
 import os
 
+print("SECRETS OK:",
+      "CLIENT_ID" in os.environ,
+      "TENANT_ID" in os.environ,
+      "CLIENT_SECRET" in os.environ,
+      "USER_ID" in os.environ)
+
 print("ExcelMailSync iniciado (App-Only)")
 
 # ======================
