@@ -1,40 +1,40 @@
 import msal
 import requests
+import json
 from datetime import datetime
-import os
 
-print("SECRETS OK:",
-      "CLIENT_ID" in os.environ,
-      "TENANT_ID" in os.environ,
-      "CLIENT_SECRET" in os.environ,
-      "USER_ID" in os.environ)
-
-print("ExcelMailSync iniciado (App-Only)")
+print("Codespace funcionando OK")
 
 # ======================
-# CONFIG desde GitHub Secrets
+# CONFIG
 # ======================
-CLIENT_ID = os.environ["CLIENT_ID"]
-TENANT_ID = os.environ["TENANT_ID"]
-CLIENT_SECRET = os.environ["CLIENT_SECRET"]
-USER_ID = "alejandro.perezgomez_outlook.com#EXT#@alejandroperezgomezoutlook.onmicrosoft.com"
+CLIENT_ID = "aa4a5948-53ce-42e6-b1e1-b4e37b5723b6"
+TENANT_ID = "1ae0bd69-c867-4cf3-b57f-3855fe6628f1"
 
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-SCOPES = ["https://graph.microsoft.com/.default"]  # App-Only scope
+AUTHORITY = "https://login.microsoftonline.com/consumers"
+
+SCOPES = [
+    "User.Read",
+    "Mail.Read",
+    "Files.ReadWrite.All"
+]
 
 EXCEL_FILE_NAME = "EXCELMAIL.xlsx"
 TABLE_NAME = "Tabla1"
 
 # ======================
-# AUTH (Client Credentials)
+# LOGIN MSAL (Device Flow)
 # ======================
-app = msal.ConfidentialClientApplication(
-    CLIENT_ID,
-    authority=AUTHORITY,
-    client_credential=CLIENT_SECRET
-)
+app = msal.PublicClientApplication(CLIENT_ID, authority=AUTHORITY)
+flow = app.initiate_device_flow(scopes=SCOPES)
 
-result = app.acquire_token_for_client(scopes=SCOPES)
+if "user_code" not in flow:
+    raise SystemExit(flow)
+
+print("👉 Ve a:", flow["verification_uri"])
+print("👉 Código:", flow["user_code"])
+
+result = app.acquire_token_by_device_flow(flow)
 
 if "access_token" not in result:
     raise SystemExit(result)
@@ -42,58 +42,50 @@ if "access_token" not in result:
 token = result["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
 
+
+# ======================
+# MAPA DE CARPETAS
+# ======================
+
+folder_map = {}
+
+folders_url = "https://graph.microsoft.com/v1.0/me/mailFolders?$top=100"
+
+resp_folders = requests.get(folders_url, headers=headers)
+
+if resp_folders.status_code == 200:
+
+    folders = resp_folders.json().get("value", [])
+
+    for folder in folders:
+
+        folder_map[folder["id"]] = folder["displayName"]
+
+
+for k, v in folder_map.items():
+    print(v)
+
+
+
+
+    print("Carpetas cargadas:", len(folder_map))
+
+else:
+
+    print("Error obteniendo carpetas")
+    print(resp_folders.status_code)
+    print(resp_folders.text)
+
+
 print("Access token OK")
-
-# ======================
-# FUNCIONES
-# ======================
-def get_all_mailfolders(user_id, headers):
-    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders?$top=100"
-    folder_map = {}
-    while url:
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            print("MAILFOLDERS STATUS:", resp.status_code)
-            print("MAILFOLDERS RESPONSE:", resp.text)
-            resp.raise_for_status()
-        data = resp.json()
-        for f in data.get("value", []):
-            folder_map[f["id"]] = f["displayName"]
-            if f.get("childFolderCount", 0) > 0:
-                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
-                folder_map.update(child_map)
-        url = data.get("@odata.nextLink")
-    return folder_map
-
-def get_all_mailfolders_recursive(user_id, parent_id, headers):
-    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages?$top=10/{parent_id}/childFolders?$top=100"
-    folder_map = {}
-    while url:
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            print("MAILFOLDERS STATUS:", resp.status_code)
-            print("MAILFOLDERS RESPONSE:", resp.text)
-            resp.raise_for_status()
-        data = resp.json()
-        for f in data.get("value", []):
-            folder_map[f["id"]] = f["displayName"]
-            if f.get("childFolderCount", 0) > 0:
-                child_map = get_all_mailfolders_recursive(user_id, f["id"], headers)
-                folder_map.update(child_map)
-        url = data.get("@odata.nextLink")
-    return folder_map
-
-# ======================
-# OBTENER CARPETAS
-# ======================
-folder_map = get_all_mailfolders(USER_ID, headers)
-print("Carpetas cargadas:", len(folder_map))
 
 # ======================
 # OBTENER EMAILS
 # ======================
+
+
 url = (
-    f"https://graph.microsoft.com/v1.0/users/{USER_ID}/messages"
+    "https://graph.microsoft.com/v1.0/me/messages"
     "?$top=100"
     "&$orderby=receivedDateTime desc"
     "&$select=receivedDateTime,from,subject,bodyPreview,parentFolderId"
@@ -102,37 +94,56 @@ url = (
 resp = requests.get(url, headers=headers)
 if resp.status_code != 200:
     print(resp.text)
-    raise SystemExit("Error emails")
+    raise SystemExit("Error al obtener emails")
 
 emails = resp.json().get("value", [])
-print("Emails obtenidos:", len(emails))
+print(f"Emails obtenidos: {len(emails)}")
 
 # ======================
-# BUSCAR EXCEL EN ONEDRIVE
+# BUSCAR EL EXCEL EN ONEDRIVE
 # ======================
-url_drive = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/root/children"
+url_drive = "https://graph.microsoft.com/v1.0/me/drive/root/children"
 resp = requests.get(url_drive, headers=headers)
 if resp.status_code != 200:
     print(resp.text)
-    raise SystemExit("Error OneDrive")
+    raise SystemExit("Error al listar archivos OneDrive")
 
 files = resp.json().get("value", [])
-file_id = next((f["id"] for f in files if f["name"] == EXCEL_FILE_NAME), None)
-if not file_id:
-    raise SystemExit(f"{EXCEL_FILE_NAME} no encontrado")
+file_id = None
+for f in files:
+    if f["name"] == EXCEL_FILE_NAME:
+        file_id = f["id"]
+        break
 
-print("FILE ID:", file_id)
+if not file_id:
+    raise SystemExit(f"{EXCEL_FILE_NAME} no encontrado en OneDrive")
+
+print(f"FILE ID encontrado: {file_id}")
 
 # ======================
 # PREPARAR FILAS
 # ======================
+
 rows = []
+
 for email in emails:
+
     folder_id = email.get("parentFolderId")
-    folder_name = folder_map.get(folder_id, "DESCONOCIDA")
-    fecha = datetime.strptime(email.get("receivedDateTime"), "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
+
+    folder_name = folder_map.get(
+        folder_id,
+        "DESCONOCIDA"
+    )
+
+    fecha_original = email.get("receivedDateTime")
+
+    fecha_formateada = datetime.strptime(
+        fecha_original,
+        "%Y-%m-%dT%H:%M:%SZ"
+    ).strftime("%d/%m/%Y")
+
     rows.append([
-        fecha,
+        fecha_formateada,
         email.get("from", {}).get("emailAddress", {}).get("address"),
         email.get("subject"),
         folder_name,
@@ -140,14 +151,23 @@ for email in emails:
     ])
 
 # ======================
-# INSERTAR FILAS EN EXCEL
+# INSERTAR FILAS EN TABLA ONLINE
 # ======================
-url_add = f"https://graph.microsoft.com/v1.0/users/{USER_ID}/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
+
+
+
+url_add_rows = f"https://graph.microsoft.com/v1.0/me/drive/items/{file_id}/workbook/tables('{TABLE_NAME}')/rows/add"
+
 payload = {"values": rows}
 
-resp = requests.post(url_add, headers={**headers, "Content-Type": "application/json"}, json=payload)
+resp = requests.post(
+    url_add_rows,
+    headers={**headers, "Content-Type": "application/json"},
+    json=payload
+)
+
 if resp.status_code not in (200, 201):
     print(resp.text)
-    raise SystemExit("Error Excel")
+    raise SystemExit("Error al insertar filas en Excel")
 
 print("✔ Sincronización completada correctamente")
