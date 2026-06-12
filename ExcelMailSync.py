@@ -17,7 +17,8 @@ print("ExcelMailSync iniciado (App-Only)")
 CLIENT_ID = os.environ["CLIENT_ID"]
 TENANT_ID = os.environ["TENANT_ID"]
 CLIENT_SECRET = os.environ["CLIENT_SECRET"]
-USER_ID = os.environ["USER_ID"]  # ObjectId o correo interno
+USER_ID = "
+alejandro.perezgomez_outlook.com#EXT#@alejandroperezgomezoutlook.onmicrosoft.com"
 
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
 SCOPES = ["https://graph.microsoft.com/.default"]  # App-Only scope
