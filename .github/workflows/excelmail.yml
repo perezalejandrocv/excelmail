@@ -18,4 +18,5 @@ jobs:
         env:
           CLIENT_ID: ${{ secrets.CLIENT_ID }}
           TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           USER_EMAIL: ${{ secrets.USER_EMAIL }}
