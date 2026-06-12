@@ -67,7 +67,7 @@ def get_all_mailfolders(user_id, headers):
     return folder_map
 
 def get_all_mailfolders_recursive(user_id, parent_id, headers):
-    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/mailFolders/{parent_id}/childFolders?$top=100"
+    url = f"https://graph.microsoft.com/v1.0/users/{user_id}/messages?$top=10/{parent_id}/childFolders?$top=100"
     folder_map = {}
     while url:
         resp = requests.get(url, headers=headers)
