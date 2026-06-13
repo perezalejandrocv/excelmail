@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>ExcelMail Bridge</title>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+</head>
+
+<body>
+    <h1>ExcelMail Bridge</h1>
+
+    <button id="login">Iniciar sesión</button>
+    <button id="logout">Cerrar sesión</button>
+
+    <h2>Emails:</h2>
+    <pre id="output"></pre>
+
+    <script>
+        const msalConfig = {
+            auth: {
+                clientId: "febd5697-6342-4a56-adfc-393e39a59c73",
+                authority: "https://login.microsoftonline.com/consumers",
+                redirectUri: "https://perezalejandrocv.github.io/excelmail/"
+            },
+            cache: {
+                cacheLocation: "localStorage"
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        const loginRequest = { scopes: [ "User.Read", "Mail.Read", "Files.ReadWrite" ] };
+
+        const output = document.getElementById("output");
+
+        async function getToken(account) {
+            return await msalInstance.acquireTokenSilent({
+                ...loginRequest,
+                account: account
+            });
+        }
+
+async function loadEmails(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/messages?$top=10",
+        {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    console.log("STATUS:", response.status);
+
+    const rawText = await response.text();
+
+    console.log("RAW RESPONSE:", rawText);
+
+    if (!response.ok) {
+        output.innerText =
+            "Graph API Error\n\n" +
+            "Status: " + response.status + "\n\n" +
+            rawText;
+
+        return;
+    }
+
+    const data = JSON.parse(rawText);
+
+    let text = "";
+
+    data.value.forEach((mail, i) => {
+        text += `\n--- EMAIL ${i + 1} ---\n`;
+        text += `Asunto: ${mail.subject}\n`;
+        text += `De: ${mail.from?.emailAddress?.address}\n`;
+        text += `Fecha: ${mail.receivedDateTime}\n`;
+    });
+
+    output.innerText = text;
+}
+
+
+async function testDrive(token) {
+
+    console.log("ENTRANDO EN TESTDRIVE");
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive",
+        {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    console.log("DRIVE STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("DRIVE RESPONSE:", text);
+
+    output.innerText += "\n\n--- DRIVE TEST ---\n";
+    output.innerText += "STATUS: " + response.status + "\n";
+    output.innerText += text;
+}
+
+
+
+async function createTestFile(token) {
+
+    console.log("CREANDO ARCHIVO...");
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive/root:/test.txt:/content",
+        {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "text/plain"
+            },
+            body: "Hola desde ExcelMail"
+        }
+    );
+
+    console.log("CREATE FILE STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("CREATE FILE RESPONSE:", text);
+
+    output.innerText += "\n\n--- CREATE FILE ---\n";
+    output.innerText += "STATUS: " + response.status + "\n";
+    output.innerText += text;
+}
+
+
+async function findExcel(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx",
+
+        {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    console.log("FIND EXCEL STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("FIND EXCEL RESPONSE:", text);
+}
+
+async function testWorkbook(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook",
+        {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        }
+    );
+
+    console.log("WORKBOOK STATUS:", response.status);
+
+    const text = await response.text();
+    console.log("WORKBOOK RESPONSE:", text);
+}
+
+async function testWorksheets(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets",
+        {
+            headers: {
+                Authorization: "Bearer " + token
+            }
+        }
+    );
+
+    console.log("WORKSHEETS STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("WORKSHEETS RESPONSE:", text);
+}
+
+
+
+async function testDrive(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive",
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }
+    );
+
+    console.log("DRIVE STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("DRIVE RESPONSE:", text);
+}
+
+async function writeCell(token) {
+
+    const response = await fetch(
+        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='A1')",
+        {
+            method: "PATCH",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                values: [["PRUEBA GRAPH"]]
+            })
+        }
+    );
+
+    console.log("WRITE CELL STATUS:", response.status);
+
+    const text = await response.text();
+
+    console.log("WRITE CELL RESPONSE:", text);
+}
+
+
+
+
+
+
+document.getElementById("login").onclick = async () => {
+    try {
+        const loginResponse = await msalInstance.loginPopup(loginRequest);
+
+        const account = loginResponse.account;
+        msalInstance.setActiveAccount(account);
+
+        // Aquí añadimos los console.log para depuración
+        const tokenResponse = await getToken(account);
+
+console.log("ACCOUNT:", account);
+console.log("TOKEN RESPONSE:", tokenResponse);
+console.log("SCOPES:", tokenResponse.scopes);
+console.log("ACCESS TOKEN:", tokenResponse.accessToken);
+
+output.innerText = "Cargando emails...";
+
+await loadEmails(tokenResponse.accessToken);
+
+console.log("ANTES DE TESTDRIVE");
+
+await testDrive(tokenResponse.accessToken);
+
+console.log("DESPUÉS DE TESTDRIVE");
+
+await createTestFile(tokenResponse.accessToken);
+
+await findExcel(tokenResponse.accessToken);
+
+await testWorkbook(tokenResponse.accessToken);
+
+await testWorksheets(tokenResponse.accessToken);
+
+await testDrive(tokenResponse.accessToken);
+
+await writeCell(tokenResponse.accessToken);
+
+
+    } catch (err) {
+        console.error(err);
+        output.innerText = "Error: " + err.message;
+    }
+};
+
+        document.getElementById("logout").onclick = () => {
+            msalInstance.logoutPopup();
+        };
+    </script>
+</body>
+</html>
