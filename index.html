@@ -15,35 +15,56 @@
     <h2>Emails:</h2>
     <pre id="output"></pre>
 
-    <script>
-        const msalConfig = {
-            auth: {
-                clientId: "febd5697-6342-4a56-adfc-393e39a59c73",
-                authority: "https://login.microsoftonline.com/consumers",
-                redirectUri: "https://perezalejandrocv.github.io/excelmail/"
-            },
-            cache: {
-                cacheLocation: "localStorage"
-            }
-        };
+<script>
+const msalConfig = {
+    auth: {
+        clientId: "febd5697-6342-4a56-adfc-393e39a59c73",
+        authority: "https://login.microsoftonline.com/consumers",
+        redirectUri: "https://perezalejandrocv.github.io/excelmail/"
+    },
+    cache: {
+        cacheLocation: "localStorage"
+    }
+};
 
-        const msalInstance = new msal.PublicClientApplication(msalConfig);
+const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        const loginRequest = { scopes: [ "User.Read", "Mail.Read", "Files.ReadWrite.All" ] };
+const loginRequest = {
+    scopes: ["User.Read", "Mail.Read", "Files.ReadWrite.All"]
+};
 
-        const output = document.getElementById("output");
+const output = document.getElementById("output");
 
-        async function getToken(account) {
-            return await msalInstance.acquireTokenSilent({
-                ...loginRequest,
-                account: account
-            });
-        }
+async function getToken(account) {
+    return msalInstance.acquireTokenSilent({
+        ...loginRequest,
+        account
+    });
+}
+
+/* =========================
+   HELPERS
+========================= */
+
+function formatDate(isoDate) {
+    if (!isoDate) return "";
+    const date = new Date(isoDate);
+    return `${String(date.getDate()).padStart(2,"0")}/${String(date.getMonth()+1).padStart(2,"0")}/${date.getFullYear()}`;
+}
+
+function stripHtml(html) {
+    if (!html) return "";
+    return html.replace(/<[^>]*>/g, "");
+}
+
+/* =========================
+   LOAD EMAILS (GRAPH)
+========================= */
 
 async function loadEmails(token) {
 
     const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/messages?$top=10&$select=subject,from,receivedDateTime,bodyPreview,parentFolderId",
+        "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=10&$select=subject,from,receivedDateTime,bodyPreview,parentFolderId,body",
         {
             headers: {
                 "Authorization": `Bearer ${token}`
@@ -52,8 +73,7 @@ async function loadEmails(token) {
     );
 
     if (!response.ok) {
-        const error = await response.text();
-        console.log("GRAPH ERROR:", error);
+        console.log("GRAPH ERROR:", await response.text());
         return [];
     }
 
@@ -65,79 +85,27 @@ async function loadEmails(token) {
         text += `\n--- EMAIL ${i + 1} ---\n`;
         text += `Asunto: ${mail.subject}\n`;
         text += `De: ${mail.from?.emailAddress?.address}\n`;
-        text += `Fecha: ${mail.receivedDateTime}\n`;
+        text += `Fecha: ${formatDate(mail.receivedDateTime)}\n`;
+        text += `Preview: ${mail.bodyPreview}\n`;
     });
 
     output.innerText = text;
 
-    return data.value; // 👈 IMPORTANTE para Excel
+    return data.value;
 }
 
-
-async function testWorkbook(token) {
-
-    const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook",
-        {
-            headers: {
-                Authorization: "Bearer " + token
-            }
-        }
-    );
-
-    console.log("WORKBOOK STATUS:", response.status);
-
-    const text = await response.text();
-    console.log("WORKBOOK RESPONSE:", text);
-}
-
-async function testWorksheets(token) {
-
-    const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets",
-        {
-            headers: {
-                Authorization: "Bearer " + token
-            }
-        }
-    );
-
-    console.log("WORKSHEETS STATUS:", response.status);
-
-    const text = await response.text();
-
-    console.log("WORKSHEETS RESPONSE:", text);
-}
-
-
-
-async function testDrive(token) {
-
-    const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/drive",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }
-    );
-
-    console.log("DRIVE STATUS:", response.status);
-
-    const text = await response.text();
-
-    console.log("DRIVE RESPONSE:", text);
-}
-
+/* =========================
+   WRITE TO EXCEL
+========================= */
 
 async function writeEmailsToExcel(token, emails) {
 
     const rows = emails.map(mail => ([
-        mail.receivedDateTime || "",
+        formatDate(mail.receivedDateTime),
         mail.from?.emailAddress?.address || "",
         mail.subject || "",
         mail.parentFolderId || "",
-        mail.bodyPreview || ""
+        stripHtml(mail.body?.content || mail.bodyPreview || "")
     ]));
 
     const response = await fetch(
@@ -148,32 +116,16 @@ async function writeEmailsToExcel(token, emails) {
                 "Authorization": `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                values: rows
-            })
+            body: JSON.stringify({ values: rows })
         }
     );
 
-    const text = await response.text();
-
-    console.log("EXCEL RESPONSE:", response.status, text);
+    console.log("EXCEL RESPONSE:", response.status, await response.text());
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* =========================
+   WRITE SINGLE CELL (TEST)
+========================= */
 
 async function writeCell(token) {
 
@@ -191,20 +143,16 @@ async function writeCell(token) {
         }
     );
 
-    console.log("WRITE CELL STATUS:", response.status);
-
-    const text = await response.text();
-
-    console.log("WRITE CELL RESPONSE:", text);
+    console.log("WRITE CELL:", response.status, await response.text());
 }
 
-
-
-
-
+/* =========================
+   LOGIN FLOW
+========================= */
 
 document.getElementById("login").onclick = async () => {
     try {
+
         const loginResponse = await msalInstance.loginPopup(loginRequest);
 
         const account = loginResponse.account;
@@ -212,17 +160,11 @@ document.getElementById("login").onclick = async () => {
 
         const tokenResponse = await getToken(account);
 
-        console.log("LOGIN OK");
-
         output.innerText = "Cargando emails...";
 
-        // 1. leer emails
         const emails = await loadEmails(tokenResponse.accessToken);
 
-        console.log("EMAILS CARGADOS:", emails?.length);
-
         await writeEmailsToExcel(tokenResponse.accessToken, emails);
-
 
         output.innerText += "\n\nSincronización completada ✔";
 
@@ -232,9 +174,14 @@ document.getElementById("login").onclick = async () => {
     }
 };
 
-        document.getElementById("logout").onclick = () => {
-            msalInstance.logoutPopup();
-        };
-    </script>
+/* =========================
+   LOGOUT
+========================= */
+
+document.getElementById("logout").onclick = () => {
+    msalInstance.logoutPopup();
+};
+</script>
+
 </body>
 </html>
