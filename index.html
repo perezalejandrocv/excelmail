@@ -131,7 +131,7 @@ async function getEmailsFromFolder(token, folderId, folderName) {
     const url =
     `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
     `?$select=subject,from,receivedDateTime,body,webLink` +
-    `&$filter=receivedDateTime ge '${since}'`;
+    `&$filter=receivedDateTime ge ${since}`;
 
     const messages = await fetchAllMessages(url, token);
 
