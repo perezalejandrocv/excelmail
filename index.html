@@ -54,11 +54,6 @@ async function getToken(account) {
    HELPERS
 ========================= */
 
-function formatDate(isoDate) {
-    if (!isoDate) return "";
-    const date = new Date(isoDate);
-    return `${String(date.getDate()).padStart(2,"0")}/${String(date.getMonth()+1).padStart(2,"0")}/${date.getFullYear()}`;
-}
 
 function formatDate(iso) {
     if (!iso) return "";
@@ -121,8 +116,7 @@ async function getFolders(token) {
 async function getEmailsFromFolder(token, folderId, folderName) {
 
     const url =
-        `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
-        `?$select=subject,from,receivedDateTime,bodyPreview,webLink`;
+    `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages?$top=50&$select=subject,from,receivedDateTime,bodyPreview`;
 
     const messages = await fetchAllMessages(url, token);
 
@@ -142,9 +136,15 @@ async function getEmailsFromFolder(token, folderId, folderName) {
 
 async function loadAllFoldersEmails(token) {
 
-    const folders = await getFolders(token);
+    const folders = await fetchAllFolders(token);
 
-    let allRows = [];
+    const rows = emails.map(r => ([
+    r[0] || "",
+    r[1] || "",
+    r[2] || "",
+    r[3] || "",
+    r[4] || ""
+]));
 
     for (const folder of folders) {
 
@@ -185,6 +185,30 @@ async function writeEmailsToExcel(token, emails) {
 
     console.log("EXCEL:", res.status, await res.text());
 }
+
+
+
+async function fetchAllFolders(token) {
+    let url = "https://graph.microsoft.com/v1.0/me/mailFolders?$top=50";
+    let all = [];
+
+    while (url) {
+        const res = await fetch(url, {
+            headers: { Authorization: "Bearer " + token }
+        });
+
+        const data = await res.json();
+
+        all = all.concat(data.value || []);
+        url = data["@odata.nextLink"];
+    }
+
+    return all;
+}
+
+
+
+
 
 /* =========================
    LOGIN
