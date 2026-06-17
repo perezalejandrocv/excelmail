@@ -76,6 +76,22 @@ function getSinceISO() {
 
 
 
+function htmlToText(html) {
+    if (!html) return "";
+    return html
+        .replace(/<style[\s\S]*?<\/style>/gi, "")   // quita CSS
+        .replace(/<script[\s\S]*?<\/script>/gi, "") // quita JS
+        .replace(/<[^>]*>/g, "")                    // quita etiquetas HTML
+        .replace(/\s+/g, " ")                      // limpia espacios
+        .trim();
+}
+
+
+
+
+
+
+
 
 /* =========================
    GRAPH: PAGINACIÓN REAL
@@ -140,7 +156,7 @@ async function getEmailsFromFolder(token, folderId, folderName) {
         mail.from?.emailAddress?.address || "",
         mail.subject || "",
         folderName,
-        mail.body?.content || ""
+        htmlToText(mail.body?.content)
     ]));
 }
 
