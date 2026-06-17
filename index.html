@@ -66,6 +66,17 @@ function formatDate(iso) {
     return `${day}/${month}/${year}`;
 }
 
+
+function getSinceISO() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1); // último día
+    return d.toISOString();
+}
+
+
+
+
+
 /* =========================
    GRAPH: PAGINACIÓN REAL
 ========================= */
@@ -115,19 +126,22 @@ async function getFolders(token) {
 
 async function getEmailsFromFolder(token, folderId, folderName) {
 
+    const since = getSinceISO();
+
     const url =
-    `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages?$top=50&$select=subject,from,receivedDateTime,bodyPreview`;
+        `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
+        `?$select=subject,from,receivedDateTime,bodyPreview,webLink` +
+        `&$filter=receivedDateTime ge ${since}`;
 
     const messages = await fetchAllMessages(url, token);
 
     return messages.map(mail => ([
-    formatDate(mail.receivedDateTime),        // FECHA (FORMATEADA)
-    mail.from?.emailAddress?.address || "",   // DE
-    mail.subject || "",                       // ASUNTO
-    folderName,                               // CARPETA
-    mail.bodyPreview || ""                    // CONTENIDO
-]));
-
+        formatDate(mail.receivedDateTime),
+        mail.from?.emailAddress?.address || "",
+        mail.subject || "",
+        folderName,
+        mail.bodyPreview || ""
+    ]));
 }
 
 /* =========================
