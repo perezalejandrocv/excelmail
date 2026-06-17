@@ -116,13 +116,13 @@ async function getEmailsFromFolder(token, folderId, folderName) {
     const messages = await fetchAllMessages(url, token);
 
     return messages.map(mail => ([
-        folderName,
-        mail.receivedDateTime,
-        mail.from?.emailAddress?.address || "",
-        mail.subject || "",
-        mail.bodyPreview || "",
-        mail.webLink || ""
-    ]));
+    mail.receivedDateTime,                         // FECHA
+    mail.from?.emailAddress?.address || "",        // DE
+    mail.subject || "",                             // ASUNTO
+    folderName,                                    // CARPETA
+    mail.bodyPreview || ""                          // CONTENIDO
+]));
+
 }
 
 /* =========================
