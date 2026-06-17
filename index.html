@@ -158,9 +158,7 @@ async function loadAllFoldersEmails(token) {
 
 async function writeEmailsToExcel(token, emails) {
 
-    const rows = emails.map(r => ([
-        r[0], r[1], r[2], r[3], r[4], r[5]
-    ]));
+    const rows = emails;
 
     const res = await fetch(
         "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
