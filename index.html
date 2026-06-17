@@ -129,9 +129,9 @@ async function getEmailsFromFolder(token, folderId, folderName) {
     const since = getSinceISO();
 
     const url =
-        `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
-        `?$select=subject,from,receivedDateTime,body,webLink` +
-        `&$filter=receivedDateTime ge ${since}`;
+    `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
+    `?$select=subject,from,receivedDateTime,body,webLink` +
+    `&$filter=receivedDateTime ge '${since}'`;
 
     const messages = await fetchAllMessages(url, token);
 
@@ -140,7 +140,7 @@ async function getEmailsFromFolder(token, folderId, folderName) {
         mail.from?.emailAddress?.address || "",
         mail.subject || "",
         folderName,
-        mail.body || ""
+        mail.body?.content || ""
     ]));
 }
 
