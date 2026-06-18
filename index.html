@@ -428,127 +428,35 @@ filas.length;
 
 
 
-async function appendExcel(token,filas){
-
-
-
-let used = await fetch(
-
-"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/usedRange",
-
-{
-
-headers:{
-
-Authorization:
-`Bearer ${token}`
-
-}
-
-}
-
-);
-
-
-
-let data =
-await used.json();
-
-
-
-let filaInicio = 1;
-
-
-
-if(data.rowCount){
-
-filaInicio =
-data.rowCount + 1;
-
-}
-
-
-
-
-let filaFinal =
-
-filaInicio + filas.length - 1;
-
-
-
-
-let rango =
-
-"A"
-
-+
-
-filaInicio
-
-+
-
-":E"
-
-+
-
-filaFinal;
-
-
-
-
+async function appendExcel(token, filas){
 
 await fetch(
 
-
-"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='"
-
-+
-
-rango
-
-+
-
-"')",
-
+"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
 
 {
 
-
-method:"PATCH",
-
+method:"POST",
 
 headers:{
 
+Authorization:`Bearer ${token}`,
 
-Authorization:
-`Bearer ${token}`,
-
-
-"Content-Type":
-"application/json"
-
+"Content-Type":"application/json"
 
 },
 
+body: JSON.stringify({
 
-body:JSON.stringify({
-
-values:filas
+values: filas
 
 })
 
-
 }
-
 
 );
 
-
-
 }
-
-
-
 
 
 
