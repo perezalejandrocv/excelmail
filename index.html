@@ -1,145 +1,565 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>ExcelMail Bridge</title>
-    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+<meta charset="UTF-8">
+<title>ExcelMail Bridge</title>
+
+<script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
 </head>
 
 <body>
-    <h1>ExcelMail Bridge</h1>
 
-    <button id="login">Iniciar sesión</button>
-    <button id="logout">Cerrar sesión</button>
+<h1>ExcelMail Bridge</h1>
 
-    <h2>Emails:</h2>
-    <pre id="output"></pre>
+<button id="login">Iniciar sesión</button>
+<button id="logout">Cerrar sesión</button>
+
+<h2>Emails:</h2>
+
+<pre id="output"></pre>
+
 
 <script>
+
+
 const msalConfig = {
+
     auth: {
+
         clientId: "febd5697-6342-4a56-adfc-393e39a59c73",
-        authority: "https://login.microsoftonline.com/consumers",
-        redirectUri: "https://perezalejandrocv.github.io/excelmail/"
+
+        authority:
+        "https://login.microsoftonline.com/consumers",
+
+        redirectUri:
+        "https://perezalejandrocv.github.io/excelmail/"
+
     },
+
     cache: {
-        cacheLocation: "localStorage"
+
+        cacheLocation:"localStorage"
+
     }
+
 };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+const msalInstance =
+new msal.PublicClientApplication(msalConfig);
+
+
 
 const loginRequest = {
-    scopes: ["User.Read", "Mail.Read", "Files.ReadWrite"]
+
+scopes:[
+
+"User.Read",
+
+"Mail.Read",
+
+"Files.ReadWrite"
+
+]
+
 };
 
-const output = document.getElementById("output");
 
-async function getToken(account) {
-    return await msalInstance.acquireTokenSilent({
-        ...loginRequest,
-        account
-    });
+
+const output =
+document.getElementById("output");
+
+
+
+
+
+async function getToken(account){
+
+
+return await msalInstance.acquireTokenSilent({
+
+...loginRequest,
+
+account:account
+
+});
+
+
 }
 
-//////////////////////////////////////////////////////
-// 📧 LEER EMAILS
-//////////////////////////////////////////////////////
-async function getEmails(token) {
-    const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/messages?$top=10",
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }
-    );
 
-    const data = await response.json();
-    return data.value || [];
+
+
+
+
+
+function formatFecha(fecha){
+
+
+let d = new Date(fecha);
+
+
+return (
+
+String(d.getDate()).padStart(2,"0")
++
+"/"
++
+String(d.getMonth()+1).padStart(2,"0")
++
+"/"
++
+d.getFullYear()
++
+" "
++
+String(d.getHours()).padStart(2,"0")
++
+":"
++
+String(d.getMinutes()).padStart(2,"0")
+
+);
+
+
 }
 
-//////////////////////////////////////////////////////
-// 📊 ESCRIBIR EN EXCEL (FILAS)
-//////////////////////////////////////////////////////
-async function writeToExcel(token, rows) {
 
-    const response = await fetch(
-        "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                values: rows
-            })
-        }
-    );
 
-    const text = await response.text();
-    console.log("EXCEL WRITE:", response.status, text);
+
+
+
+
+async function getFolders(token){
+
+
+
+let response =
+await fetch(
+
+"https://graph.microsoft.com/v1.0/me/mailFolders",
+
+{
+
+headers:{
+
+Authorization:`Bearer ${token}`
+
 }
 
-//////////////////////////////////////////////////////
-// 🔁 SYNC PRINCIPAL
-//////////////////////////////////////////////////////
-async function syncEmails(token) {
-
-    const emails = await getEmails(token);
-
-    const rows = emails.map(mail => [
-
-        // FECHA
-        mail.receivedDateTime,
-
-        // CARPETA (Inbox/Sent/etc — en este caso simplificado)
-        "Inbox",
-
-        // DE
-        mail.from?.emailAddress?.address || "",
-
-        // ASUNTO
-        mail.subject || "",
-
-        // CONTENIDO (texto simple)
-        mail.body?.content || ""
-
-    ]);
-
-    await writeToExcel(token, rows);
-
-    output.innerText =
-        "Sync completado: " + rows.length + " emails añadidos a Excel";
 }
 
-//////////////////////////////////////////////////////
-// 🔐 LOGIN
-//////////////////////////////////////////////////////
-document.getElementById("login").onclick = async () => {
-    try {
-        const loginResponse = await msalInstance.loginPopup(loginRequest);
+);
 
-        const account = loginResponse.account;
-        msalInstance.setActiveAccount(account);
 
-        const tokenResponse = await getToken(account);
+let data =
+await response.json();
 
-        output.innerText = "Sincronizando emails...";
 
-        await syncEmails(tokenResponse.accessToken);
 
-    } catch (err) {
-        console.error(err);
-        output.innerText = "Error: " + err.message;
-    }
+return data.value;
+
+
+}
+
+
+
+
+
+
+
+
+async function getEmailsFolder(token,folder){
+
+
+
+let hoy = new Date();
+
+
+let inicio =
+hoy.toISOString().split("T")[0]
++
+"T00:00:00Z";
+
+
+
+
+let url =
+
+"https://graph.microsoft.com/v1.0/me/mailFolders/"
++
+folder.id
++
+"/messages?$filter=receivedDateTime ge "
++
+inicio
++
+"&$top=100&$select=subject,from,receivedDateTime,body";
+
+
+
+
+let response =
+await fetch(
+
+url,
+
+{
+
+headers:{
+
+Authorization:`Bearer ${token}`
+
+}
+
+}
+
+);
+
+
+
+let data =
+await response.json();
+
+
+
+return data.value || [];
+
+
+}
+
+
+
+
+
+
+
+
+
+async function loadEmails(token){
+
+
+
+let carpetas = [
+
+"Inbox",
+"PRINCIPAL",
+"SECUNDARIO",
+"NOTES",
+"NOTICIAS",
+"CV",
+"BCN",
+"OFFICE",
+"INTERNET",
+"SentItems",
+"JunkEmail",
+"DeletedItems"
+
+];
+
+
+
+
+
+let folders =
+await getFolders(token);
+
+
+
+let todos=[];
+
+
+
+
+for(let nombre of carpetas){
+
+
+let carpeta =
+folders.find(
+
+f =>
+f.displayName.toLowerCase()
+==
+nombre.toLowerCase()
+
+);
+
+
+
+if(carpeta){
+
+
+let mails =
+await getEmailsFolder(token,carpeta);
+
+
+
+mails.forEach(m=>{
+
+m.carpeta =
+carpeta.displayName;
+
+});
+
+
+todos.push(...mails);
+
+
+}
+
+
+}
+
+
+
+
+
+
+
+let filas=[];
+
+
+
+todos.forEach(mail=>{
+
+
+filas.push([
+
+
+formatFecha(mail.receivedDateTime),
+
+
+mail.carpeta,
+
+
+mail.from?.emailAddress?.address || "",
+
+
+mail.subject || "",
+
+
+mail.body?.content || ""
+
+
+]);
+
+
+});
+
+
+
+
+
+await appendExcel(token,filas);
+
+
+
+
+output.innerText =
+
+"Correos cargados hoy: "
++
+filas.length;
+
+
+
+}
+
+
+
+
+
+
+
+
+
+async function appendExcel(token,filas){
+
+
+
+let url =
+
+
+"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/usedRange";
+
+
+
+
+let response =
+await fetch(
+
+url,
+
+{
+
+headers:{
+
+Authorization:
+`Bearer ${token}`
+
+}
+
+}
+
+);
+
+
+
+let data =
+await response.json();
+
+
+
+
+let siguienteFila = 1;
+
+
+
+if(data.rowCount){
+
+siguienteFila =
+data.rowCount + 1;
+
+}
+
+
+
+
+
+let rango =
+
+
+"A"
++
+siguienteFila
++
+":E"
++
+(siguienteFila + filas.length -1);
+
+
+
+
+
+await fetch(
+
+"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='"
++
+rango
++
+"')",
+
+{
+
+method:"PATCH",
+
+headers:{
+
+
+Authorization:
+`Bearer ${token}`,
+
+
+"Content-Type":"application/json"
+
+
+},
+
+
+body:JSON.stringify({
+
+values:filas
+
+})
+
+
+}
+
+);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+document.getElementById("login").onclick =
+async ()=>{
+
+
+try{
+
+
+let login =
+await msalInstance.loginPopup(loginRequest);
+
+
+
+let account =
+login.account;
+
+
+
+msalInstance.setActiveAccount(account);
+
+
+
+let token =
+await getToken(account);
+
+
+
+await loadEmails(token.accessToken);
+
+
+
+}
+
+catch(e){
+
+
+console.error(e);
+
+
+output.innerText =
+"ERROR: "
++
+e.message;
+
+
+}
+
+
 };
 
-document.getElementById("logout").onclick = () => {
-    msalInstance.logoutPopup();
+
+
+
+
+
+
+document.getElementById("logout").onclick =
+()=>{
+
+
+msalInstance.logoutPopup();
+
+
 };
+
+
+
+
 </script>
 
+
 </body>
+
 </html>
