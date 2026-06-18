@@ -40,10 +40,17 @@ const output = document.getElementById("output");
 
 // ---------------- TOKEN ----------------
 async function getToken(account){
-  return await msalInstance.acquireTokenSilent({
-    ...loginRequest,
-    account
-  });
+  try {
+    const response = await msalInstance.acquireTokenSilent({
+      ...loginRequest,
+      account
+    });
+    return response.accessToken;
+
+  } catch (e) {
+    const response = await msalInstance.acquireTokenPopup(loginRequest);
+    return response.accessToken;
+  }
 }
 
 
@@ -56,17 +63,6 @@ function cleanHTML(html){
     .replace(/&nbsp;/g," ")
     .replace(/&amp;/g,"&")
     .trim();
-}
-
-
-// ---------------- FECHA ----------------
-function formatFecha(fecha){
-  let d = new Date(fecha);
-  return (
-    String(d.getDate()).padStart(2,"0") + "/" +
-    String(d.getMonth()+1).padStart(2,"0") + "/" +
-    d.getFullYear()
-  );
 }
 
 
@@ -125,17 +121,25 @@ async function setLastSync(token, dateISO){
 // ---------------- GET MESSAGES FROM FOLDER ----------------
 async function getFolderMessages(token, folderId, lastSync){
 
-  const url =
+  let url =
     `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
     `?$filter=receivedDateTime ge ${lastSync}` +
-    `&$select=subject,from,receivedDateTime,body`;
+    `&$select=subject,from,receivedDateTime,body` +
+    `&$top=50`;
 
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  let all = [];
 
-  const data = await response.json();
-  return data.value || [];
+  while(url){
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    const data = await response.json();
+    all.push(...(data.value || []));
+    url = data["@odata.nextLink"];
+  }
+
+  return all;
 }
 
 
@@ -181,7 +185,7 @@ async function syncEmails(token){
     for(let mail of mails){
 
       filas.push([
-        formatFecha(mail.receivedDateTime),
+        mail.receivedDateTime, // ✅ AHORA ES FECHA REAL
         folder.displayName,
         mail.from?.emailAddress?.address || "",
         mail.subject || "",
@@ -217,7 +221,7 @@ document.getElementById("login").onclick = async () => {
 
     let token = await getToken(account);
 
-    await syncEmails(token.accessToken);
+    await syncEmails(token);
 
   } catch(e){
     console.error(e);
