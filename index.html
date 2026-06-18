@@ -198,8 +198,11 @@ async function syncEmails(token){
   if(filas.length > 0){
     await appendExcel(token, filas);
 
-    let now = new Date().toISOString();
-    await setLastSync(token, now);
+// 👉 FORMATEAR FECHA EN EXCEL
+await formatDateColumn(token);
+
+let now = new Date().toISOString();
+await setLastSync(token, now);
 
     output.innerText = "Emails añadidos: " + filas.length;
 
@@ -207,6 +210,26 @@ async function syncEmails(token){
     output.innerText = "No hay emails nuevos.";
   }
 }
+
+
+async function formatDateColumn(token){
+
+  await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='A:A')",
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        numberFormat: [[ "dd/mm/yyyy" ]]
+      })
+    }
+  );
+}
+
+
 
 
 // ---------------- LOGIN ----------------
