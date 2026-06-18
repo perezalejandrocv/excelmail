@@ -1,23 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
 <meta charset="UTF-8">
+
 <title>ExcelMail Bridge</title>
 
 <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
 
 </head>
 
+
 <body>
+
 
 <h1>ExcelMail Bridge</h1>
 
-<button id="login">Iniciar sesión</button>
-<button id="logout">Cerrar sesión</button>
+
+<button id="login">
+Iniciar sesión
+</button>
+
+
+<button id="logout">
+Cerrar sesión
+</button>
+
 
 <h2>Emails:</h2>
 
 <pre id="output"></pre>
+
 
 
 <script>
@@ -25,25 +39,31 @@
 
 const msalConfig = {
 
-    auth: {
+auth: {
 
-        clientId: "febd5697-6342-4a56-adfc-393e39a59c73",
+clientId:
+"febd5697-6342-4a56-adfc-393e39a59c73",
 
-        authority:
-        "https://login.microsoftonline.com/consumers",
 
-        redirectUri:
-        "https://perezalejandrocv.github.io/excelmail/"
+authority:
+"https://login.microsoftonline.com/consumers",
 
-    },
 
-    cache: {
+redirectUri:
+"https://perezalejandrocv.github.io/excelmail/"
 
-        cacheLocation:"localStorage"
+},
 
-    }
+
+cache: {
+
+cacheLocation:
+"localStorage"
+
+}
 
 };
+
 
 
 const msalInstance =
@@ -74,6 +94,8 @@ document.getElementById("output");
 
 
 
+
+
 async function getToken(account){
 
 
@@ -81,9 +103,36 @@ return await msalInstance.acquireTokenSilent({
 
 ...loginRequest,
 
-account:account
+account
 
 });
+
+
+}
+
+
+
+
+
+
+
+
+function cleanHTML(html){
+
+
+return html
+
+.replace(/<br\s*\/?>/gi,"\n")
+
+.replace(/<p.*?>/gi,"\n")
+
+.replace(/<[^>]*>/g,"")
+
+.replace(/&nbsp;/g," ")
+
+.replace(/&amp;/g,"&")
+
+.trim();
 
 
 }
@@ -97,28 +146,29 @@ account:account
 function formatFecha(fecha){
 
 
-let d = new Date(fecha);
+let d =
+new Date(fecha);
 
 
 return (
 
 String(d.getDate()).padStart(2,"0")
+
 +
+
 "/"
+
 +
+
 String(d.getMonth()+1).padStart(2,"0")
+
 +
+
 "/"
+
 +
+
 d.getFullYear()
-+
-" "
-+
-String(d.getHours()).padStart(2,"0")
-+
-":"
-+
-String(d.getMinutes()).padStart(2,"0")
 
 );
 
@@ -131,26 +181,43 @@ String(d.getMinutes()).padStart(2,"0")
 
 
 
-async function getFolders(token){
+
+
+async function getAllFolders(token){
+
+
+
+let folders=[];
+
+
+let url =
+
+"https://graph.microsoft.com/v1.0/me/mailFolders?$top=100";
+
+
+
+while(url){
 
 
 
 let response =
 await fetch(
 
-"https://graph.microsoft.com/v1.0/me/mailFolders",
+url,
 
 {
 
 headers:{
 
-Authorization:`Bearer ${token}`
+Authorization:
+`Bearer ${token}`
 
 }
 
 }
 
 );
+
 
 
 let data =
@@ -158,7 +225,19 @@ await response.json();
 
 
 
-return data.value;
+folders.push(...data.value);
+
+
+
+url =
+data["@odata.nextLink"];
+
+
+}
+
+
+
+return folders;
 
 
 }
@@ -170,32 +249,44 @@ return data.value;
 
 
 
-async function getEmailsFolder(token,folder){
+
+async function getFolderMessages(token,folder){
 
 
 
-let hoy = new Date();
+let hoy =
+new Date();
 
 
 let inicio =
-hoy.toISOString().split("T")[0]
+
+hoy.toISOString()
+.split("T")[0]
 +
 "T00:00:00Z";
 
 
 
-
 let url =
 
+
 "https://graph.microsoft.com/v1.0/me/mailFolders/"
+
 +
+
 folder.id
+
 +
+
 "/messages?$filter=receivedDateTime ge "
+
 +
+
 inicio
+
 +
-"&$top=100&$select=subject,from,receivedDateTime,body";
+
+"&$select=subject,from,receivedDateTime,body";
 
 
 
@@ -209,7 +300,8 @@ url,
 
 headers:{
 
-Authorization:`Bearer ${token}`
+Authorization:
+`Bearer ${token}`
 
 }
 
@@ -241,79 +333,13 @@ async function loadEmails(token){
 
 
 
-let carpetas = [
-
-"Inbox",
-"PRINCIPAL",
-"SECUNDARIO",
-"NOTES",
-"NOTICIAS",
-"CV",
-"BCN",
-"OFFICE",
-"INTERNET",
-"SentItems",
-"JunkEmail",
-"DeletedItems"
-
-];
-
-
+output.innerText =
+"Buscando carpetas...";
 
 
 
 let folders =
-await getFolders(token);
-
-
-
-let todos=[];
-
-
-
-
-for(let nombre of carpetas){
-
-
-let carpeta =
-folders.find(
-
-f =>
-f.displayName.toLowerCase()
-==
-nombre.toLowerCase()
-
-);
-
-
-
-if(carpeta){
-
-
-let mails =
-await getEmailsFolder(token,carpeta);
-
-
-
-mails.forEach(m=>{
-
-m.carpeta =
-carpeta.displayName;
-
-});
-
-
-todos.push(...mails);
-
-
-}
-
-
-}
-
-
-
-
+await getAllFolders(token);
 
 
 
@@ -321,45 +347,73 @@ let filas=[];
 
 
 
-todos.forEach(mail=>{
+
+for(let folder of folders){
+
+
+
+let mails =
+await getFolderMessages(token,folder);
+
+
+
+for(let mail of mails){
+
 
 
 filas.push([
 
 
+
 formatFecha(mail.receivedDateTime),
 
 
-mail.carpeta,
+folder.displayName,
 
 
 mail.from?.emailAddress?.address || "",
 
 
+
 mail.subject || "",
 
 
+
+cleanHTML(
 mail.body?.content || ""
+)
 
 
 ]);
 
 
-});
+
+}
+
+
+}
 
 
 
+
+
+
+if(filas.length){
 
 
 await appendExcel(token,filas);
 
 
+}
+
 
 
 output.innerText =
 
-"Correos cargados hoy: "
+"Correos añadidos: "
+
 +
+
 filas.length;
 
 
@@ -378,18 +432,9 @@ async function appendExcel(token,filas){
 
 
 
-let url =
+let used = await fetch(
 
-
-"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/usedRange";
-
-
-
-
-let response =
-await fetch(
-
-url,
+"https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/usedRange",
 
 {
 
@@ -407,18 +452,17 @@ Authorization:
 
 
 let data =
-await response.json();
+await used.json();
 
 
 
-
-let siguienteFila = 1;
+let filaInicio = 1;
 
 
 
 if(data.rowCount){
 
-siguienteFila =
+filaInicio =
 data.rowCount + 1;
 
 }
@@ -426,17 +470,28 @@ data.rowCount + 1;
 
 
 
+let filaFinal =
+
+filaInicio + filas.length - 1;
+
+
+
 
 let rango =
 
-
 "A"
+
 +
-siguienteFila
+
+filaInicio
+
 +
+
 ":E"
+
 +
-(siguienteFila + filas.length -1);
+
+filaFinal;
 
 
 
@@ -444,15 +499,23 @@ siguienteFila
 
 await fetch(
 
+
 "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='"
+
 +
+
 rango
+
 +
+
 "')",
+
 
 {
 
+
 method:"PATCH",
+
 
 headers:{
 
@@ -461,7 +524,8 @@ Authorization:
 `Bearer ${token}`,
 
 
-"Content-Type":"application/json"
+"Content-Type":
+"application/json"
 
 
 },
@@ -475,6 +539,7 @@ values:filas
 
 
 }
+
 
 );
 
@@ -490,8 +555,7 @@ values:filas
 
 
 
-document.getElementById("login").onclick =
-async ()=>{
+document.getElementById("login").onclick = async ()=>{
 
 
 try{
@@ -529,9 +593,7 @@ console.error(e);
 
 
 output.innerText =
-"ERROR: "
-+
-e.message;
+"ERROR: " + e.message;
 
 
 }
@@ -545,8 +607,7 @@ e.message;
 
 
 
-document.getElementById("logout").onclick =
-()=>{
+document.getElementById("logout").onclick = ()=>{
 
 
 msalInstance.logoutPopup();
@@ -556,10 +617,10 @@ msalInstance.logoutPopup();
 
 
 
-
 </script>
 
 
 </body>
+
 
 </html>
