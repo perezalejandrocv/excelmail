@@ -361,29 +361,15 @@ for(let mail of mails){
 
 
 
+const excelDate =
+  (Date.parse(mail.receivedDateTime) / 86400000) + 25569;
+
 filas.push([
-
-
-
-mail.receivedDateTime,
-
-
-folder.displayName,
-
-
-mail.from?.emailAddress?.address || "",
-
-
-
-mail.subject || "",
-
-
-
-cleanHTML(
-mail.body?.content || ""
-)
-
-
+  excelDate,
+  folder.displayName,
+  mail.from?.emailAddress?.address || "",
+  mail.subject || "",
+  cleanHTML(mail.body?.content || "")
 ]);
 
 
