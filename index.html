@@ -57,15 +57,8 @@ async function getToken(account){
 
 
 function toExcelDate(dateString){
-  const d = new Date(dateString);
-
-  // evita hora + fuerza fecha limpia
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-
-  // formato compatible Excel como fecha REAL
-  return `${year}-${month}-${day}`;
+  const date = new Date(dateString);
+  return (date.getTime() / 86400000) + 25569;
 }
 
 
