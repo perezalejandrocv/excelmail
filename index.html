@@ -196,7 +196,7 @@ async function syncEmails(token){
     for(let mail of mails){
 
       filas.push([
-  new Date(mail.receivedDateTime).toISOString(),
+  mail.receivedDateTime,
   folder.displayName,
   mail.from?.emailAddress?.address || "",
   mail.subject || "",
