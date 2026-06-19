@@ -215,8 +215,8 @@ async function syncEmails(token){
 
     for(let mail of mails){
 
-      filas.push([
-  mail.receivedDateTime,
+filas.push([
+  toExcelDate(mail.receivedDateTime),
   folder.displayName,
   mail.from?.emailAddress?.address || "",
   mail.subject || "",
