@@ -250,76 +250,24 @@ return folders;
 
 
 
+async function getFolderMessages(token,folder,inicio){
 
-async function getFolderMessages(token,folder){
+  let url =
+    "https://graph.microsoft.com/v1.0/me/mailFolders/"
+    + folder.id
+    + "/messages?$filter=receivedDateTime ge "
+    + inicio
+    + "&$select=subject,from,receivedDateTime,body";
 
+  let response = await fetch(url,{
+    headers:{
+      Authorization:`Bearer ${token}`
+    }
+  });
 
+  let data = await response.json();
 
-let hoy =
-new Date();
-
-
-let inicio =
-
-hoy.toISOString()
-.split("T")[0]
-+
-"T00:00:00Z";
-
-
-
-let url =
-
-
-"https://graph.microsoft.com/v1.0/me/mailFolders/"
-
-+
-
-folder.id
-
-+
-
-"/messages?$filter=receivedDateTime ge "
-
-+
-
-inicio
-
-+
-
-"&$select=subject,from,receivedDateTime,body";
-
-
-
-
-let response =
-await fetch(
-
-url,
-
-{
-
-headers:{
-
-Authorization:
-`Bearer ${token}`
-
-}
-
-}
-
-);
-
-
-
-let data =
-await response.json();
-
-
-
-return data.value || [];
-
-
+  return data.value || [];
 }
 
 
@@ -332,82 +280,87 @@ return data.value || [];
 
 async function loadEmails(token){
 
+  output.innerText = "Buscando última sincronización...";
 
+  let lastSyncDate = await getLastSync(token);
 
-output.innerText =
-"Buscando carpetas...";
+  if(!lastSyncDate){
+    output.innerText = "ERROR: No se pudo leer LAST_SYNC";
+    return;
+  }
 
+  let inicio = lastSyncDate.toISOString();
 
+  output.innerText = "Buscando carpetas...";
 
-let folders =
-await getAllFolders(token);
+  let folders = await getAllFolders(token);
 
+  let filas=[];
 
+  for(let folder of folders){
 
-let filas=[];
+    let mails = await getFolderMessages(token, folder, inicio);
 
+    for(let mail of mails){
 
+      const excelDate =
+        (Date.parse(mail.receivedDateTime) / 86400000) + 25569;
 
+      filas.push([
+        excelDate,
+        folder.displayName,
+        mail.from?.emailAddress?.address || "",
+        mail.subject || "",
+        cleanHTML(mail.body?.content || "")
+      ]);
 
-for(let folder of folders){
+    }
 
+  }
 
+  if(filas.length){
+    await appendExcel(token,filas);
+  }
 
-let mails =
-await getFolderMessages(token,folder);
-
-
-
-for(let mail of mails){
-
-
-
-const excelDate =
-  (Date.parse(mail.receivedDateTime) / 86400000) + 25569;
-
-filas.push([
-  excelDate,
-  folder.displayName,
-  mail.from?.emailAddress?.address || "",
-  mail.subject || "",
-  cleanHTML(mail.body?.content || "")
-]);
-
-
-
-}
-
-
-}
-
-
-
-
-
-
-if(filas.length){
-
-
-await appendExcel(token,filas);
-
-
+  output.innerText =
+    "Correos añadidos: " + filas.length;
 }
 
 
 
-output.innerText =
-
-"Correos añadidos: "
-
-+
-
-filas.length;
 
 
+async function getLastSync(token){
 
+  let response = await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja3')/range(address='A1:B1')",
+    {
+      headers:{
+        Authorization:`Bearer ${token}`
+      }
+    }
+  );
+
+  let data = await response.json();
+
+  // B1 = valor real de fecha
+  let raw = data.values?.[0]?.[1];
+
+  if(!raw) return null;
+
+  // Si ya viene como string dd/mm/yyyy
+  if(raw.includes("/")){
+    let [d,m,y] = raw.split("/");
+    return new Date(`${y}-${m}-${d}T00:00:00Z`);
+  }
+
+  // Si Excel lo devuelve como número serial
+  if(!isNaN(raw)){
+    return new Date((raw - 25569) * 86400000);
+  }
+
+  return new Date(raw);
 }
-
-
 
 
 
@@ -509,6 +462,9 @@ msalInstance.logoutPopup();
 
 
 };
+
+
+
 
 
 
