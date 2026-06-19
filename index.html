@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -54,6 +55,18 @@ async function getToken(account){
 }
 
 
+
+function toExcelDate(dateString){
+  const date = new Date(dateString);
+
+  // Excel empieza en 1899-12-30
+  const excelEpoch = new Date(1899, 11, 30);
+
+  return (date - excelEpoch) / (1000 * 60 * 60 * 24);
+}
+
+
+
 // ---------------- CLEAN HTML ----------------
 function cleanHTML(html){
   return html
@@ -64,6 +77,8 @@ function cleanHTML(html){
     .replace(/&amp;/g,"&")
     .trim();
 }
+
+
 
 
 // ---------------- GET ALL FOLDERS ----------------
@@ -185,12 +200,12 @@ async function syncEmails(token){
     for(let mail of mails){
 
       filas.push([
-        mail.receivedDateTime, // ✅ AHORA ES FECHA REAL
-        folder.displayName,
-        mail.from?.emailAddress?.address || "",
-        mail.subject || "",
-        cleanHTML(mail.body?.content || "")
-      ]);
+  toExcelDate(mail.receivedDateTime),
+  folder.displayName,
+  mail.from?.emailAddress?.address || "",
+  mail.subject || "",
+  cleanHTML(mail.body?.content || "")
+]);
 
     }
   }
