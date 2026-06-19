@@ -57,12 +57,15 @@ async function getToken(account){
 
 
 function toExcelDate(dateString){
-  const date = new Date(dateString);
+  const d = new Date(dateString);
 
-  // Excel empieza en 1899-12-30
-  const excelEpoch = new Date(1899, 11, 30);
+  // evita hora + fuerza fecha limpia
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
 
-  return (date - excelEpoch) / (1000 * 60 * 60 * 24);
+  // formato compatible Excel como fecha REAL
+  return `${year}-${month}-${day}`;
 }
 
 
@@ -213,8 +216,7 @@ async function syncEmails(token){
   if(filas.length > 0){
     await appendExcel(token, filas);
 
-// 👉 FORMATEAR FECHA EN EXCEL
-await formatDateColumn(token);
+
 
 let now = new Date().toISOString();
 await setLastSync(token, now);
