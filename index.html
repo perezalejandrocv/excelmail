@@ -172,6 +172,26 @@ async function appendExcel(token, filas){
 }
 
 
+
+async function formatDateColumn(token){
+
+  await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/columns(0)/range/format",
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        numberFormat: [[ "dd/mm/yyyy hh:mm" ]]
+      })
+    }
+  );
+}
+
+
+
 // ---------------- MAIN SYNC ----------------
 async function syncEmails(token){
 
@@ -209,7 +229,7 @@ async function syncEmails(token){
   if(filas.length > 0){
     await appendExcel(token, filas);
 
-
+await formatDateColumn(token);
 
 let now = new Date().toISOString();
 await setLastSync(token, now);
