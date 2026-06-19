@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -46,6 +47,7 @@ async function getToken(account){
       account
     });
     return response.accessToken;
+
   } catch (e) {
     const response = await msalInstance.acquireTokenPopup(loginRequest);
     return response.accessToken;
@@ -53,11 +55,12 @@ async function getToken(account){
 }
 
 
-// ---------------- FECHA EXCEL ----------------
+
 function toExcelDate(dateString){
   const date = new Date(dateString);
   return (date.getTime() / 86400000) + 25569;
 }
+
 
 
 // ---------------- CLEAN HTML ----------------
@@ -72,8 +75,11 @@ function cleanHTML(html){
 }
 
 
-// ---------------- FOLDERS ----------------
+
+
+// ---------------- GET ALL FOLDERS ----------------
 async function getAllFolders(token){
+
   let folders = [];
   let url = "https://graph.microsoft.com/v1.0/me/mailFolders?$top=100";
 
@@ -91,7 +97,7 @@ async function getAllFolders(token){
 }
 
 
-// ---------------- LAST SYNC ----------------
+// ---------------- GET LAST SYNC ----------------
 async function getLastSync(token){
   const response = await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja3')/range(address='B1')",
@@ -104,6 +110,8 @@ async function getLastSync(token){
   return data.values?.[0]?.[0];
 }
 
+
+// ---------------- SET LAST SYNC ----------------
 async function setLastSync(token, dateISO){
   await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja3')/range(address='B1')",
@@ -121,13 +129,13 @@ async function setLastSync(token, dateISO){
 }
 
 
-// ---------------- MESSAGES ----------------
+// ---------------- GET MESSAGES FROM FOLDER ----------------
 async function getFolderMessages(token, folderId, lastSync){
 
   let url =
     `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages` +
     `?$filter=receivedDateTime ge ${lastSync}` +
-    `&$select=id,subject,from,receivedDateTime,body` +
+    `&$select=subject,from,receivedDateTime,body` +
     `&$top=50`;
 
   let all = [];
@@ -146,7 +154,7 @@ async function getFolderMessages(token, folderId, lastSync){
 }
 
 
-// ---------------- APPEND EXCEL ----------------
+// ---------------- APPEND TO EXCEL ----------------
 async function appendExcel(token, filas){
   await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
@@ -164,10 +172,11 @@ async function appendExcel(token, filas){
 }
 
 
-// ---------------- FORMAT COLUMN ----------------
-async function formatTable(token){
+
+async function formatDateColumn(token){
+
   await fetch(
-    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/columns/0/range/format",
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/columns(0)/range/format",
     {
       method: "PATCH",
       headers: {
@@ -175,14 +184,15 @@ async function formatTable(token){
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        numberFormat: [["dd/mm/yyyy hh:mm"]]
+        numberFormat: [[ "dd/mm/yyyy hh:mm" ]]
       })
     }
   );
 }
 
 
-// ---------------- SYNC ----------------
+
+// ---------------- MAIN SYNC ----------------
 async function syncEmails(token){
 
   output.innerText = "Leyendo última sincronización...";
@@ -193,10 +203,11 @@ async function syncEmails(token){
     lastSync = "2000-01-01T00:00:00Z";
   }
 
+  output.innerText = "Última sync: " + lastSync;
+
   let folders = await getAllFolders(token);
 
   let filas = [];
-  let seen = new Set();
 
   for(let folder of folders){
 
@@ -204,26 +215,24 @@ async function syncEmails(token){
 
     for(let mail of mails){
 
-      if(seen.has(mail.id)) continue;
-      seen.add(mail.id);
+filas.push([
+  toExcelDate(mail.receivedDateTime),
+  folder.displayName,
+  mail.from?.emailAddress?.address || "",
+  mail.subject || "",
+  cleanHTML(mail.body?.content || "")
+]);
 
-      filas.push([
-        toExcelDate(mail.receivedDateTime),
-        folder.displayName,
-        mail.from?.emailAddress?.address || "",
-        mail.subject || "",
-        cleanHTML(mail.body?.content || "")
-      ]);
     }
   }
 
   if(filas.length > 0){
-
     await appendExcel(token, filas);
-    await formatTable(token);
 
-    let now = new Date().toISOString();
-    await setLastSync(token, now);
+await formatDateColumn(token);
+
+let now = new Date().toISOString();
+await setLastSync(token, now);
 
     output.innerText = "Emails añadidos: " + filas.length;
 
@@ -233,20 +242,45 @@ async function syncEmails(token){
 }
 
 
+async function formatDateColumn(token){
+
+  await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja1')/range(address='A:A')",
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        numberFormat: [[ "dd/mm/yyyy" ]]
+      })
+    }
+  );
+}
+
+
+
+
 // ---------------- LOGIN ----------------
 document.getElementById("login").onclick = async () => {
+
   try{
+
     let login = await msalInstance.loginPopup(loginRequest);
     let account = login.account;
 
     msalInstance.setActiveAccount(account);
 
     let token = await getToken(account);
+
     await syncEmails(token);
 
   } catch(e){
+    console.error(e);
     output.innerText = "ERROR: " + e.message;
   }
+
 };
 
 
