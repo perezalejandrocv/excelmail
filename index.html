@@ -344,15 +344,31 @@ async function getLastSync(token){
   let data = await response.json();
 
   // B1 = valor real de fecha
-  let raw = data.values?.[0]?.[1];
 
-  if(!raw) return null;
 
-  // Si ya viene como string dd/mm/yyyy
-  if(raw.includes("/")){
-    let [d,m,y] = raw.split("/");
-    return new Date(`${y}-${m}-${d}T00:00:00Z`);
-  }
+
+
+let raw = data.values?.[0]?.[1];
+
+if(raw === undefined || raw === null) return null;
+
+// si viene como número Excel
+if(typeof raw === "number"){
+  return new Date((raw - 25569) * 86400000);
+}
+
+// forzamos string SOLO si hace falta
+let rawStr = String(raw);
+
+if(rawStr.includes("/")){
+  let [d,m,y] = rawStr.split("/");
+  return new Date(`${y}-${m}-${d}T00:00:00Z`);
+}
+
+return new Date(rawStr);
+
+
+
 
   // Si Excel lo devuelve como número serial
   if(!isNaN(raw)){
