@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 
@@ -191,13 +190,13 @@ async function updateLastSync(token, date){
 
 async function loadEmails(token){
 
+  console.log("VERSION DEBUG OK");
+
   output.innerText = "Leyendo LAST_SYNC...";
 
   let lastSyncDate = await getLastSync(token);
 
-console.log("LAST_SYNC:", lastSyncDate.toISOString());
-
-
+  console.log("LAST_SYNC:", lastSyncDate.toISOString());
 
   let inicio = lastSyncDate.toISOString();
 
@@ -213,6 +212,11 @@ console.log("LAST_SYNC:", lastSyncDate.toISOString());
     let mails = await getFolderMessages(token, folder, inicio);
 
     for(let mail of mails){
+
+      console.log(
+        "DATE:", mail.receivedDateTime,
+        "| SUBJECT:", mail.subject
+      );
 
       let mailDate = new Date(mail.receivedDateTime);
 
@@ -234,6 +238,9 @@ console.log("LAST_SYNC:", lastSyncDate.toISOString());
   }
 
   if(filas.length){
+
+    console.log("MAX DATE:", maxDate.toISOString());
+
     await appendExcel(token, filas);
     await updateLastSync(token, maxDate);
   }
