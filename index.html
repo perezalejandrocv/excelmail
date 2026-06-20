@@ -194,6 +194,16 @@ async function loadEmails(token){
   output.innerText = "Leyendo LAST_SYNC...";
 
   let lastSyncDate = await getLastSync(token);
+
+console.log("LAST_SYNC:", lastSyncDate.toISOString());
+
+console.log(
+  "MAIL:",
+  mail.receivedDateTime,
+  mail.subject
+);
+
+
   let inicio = lastSyncDate.toISOString();
 
   output.innerText = "Buscando correos nuevos...";
