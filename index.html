@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -125,7 +126,7 @@ async function getFolderMessages(token, folder, inicio){
     "https://graph.microsoft.com/v1.0/me/mailFolders/"
     + folder.id
     + "/messages"
-    + "?$filter=receivedDateTime ge " + inicio
+    + "?$filter=receivedDateTime gt " + inicio
     + "&$orderby=receivedDateTime asc"
     + "&$select=subject,from,receivedDateTime,body";
 
