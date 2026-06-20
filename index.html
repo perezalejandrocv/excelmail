@@ -198,7 +198,7 @@ async function loadEmails(token){
 
   console.log("LAST_SYNC:", lastSyncDate.toISOString());
 
-  let inicio = lastSyncDate.toISOString();
+  let inicio = new Date(lastSyncDate.getTime() + 2000).toISOString();
 
   output.innerText = "Buscando correos nuevos...";
 
