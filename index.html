@@ -38,6 +38,10 @@ const loginRequest = {
 
 const output = document.getElementById("output");
 
+const urlParams = new URLSearchParams(window.location.search);
+const mailId = urlParams.get("id");
+
+
 async function getToken(account){
   return await msalInstance.acquireTokenSilent({
     ...loginRequest,
@@ -224,12 +228,12 @@ async function loadEmails(token){
         (mailDate.getTime() / 86400000) + 25569;
 
       filas.push([
-        excelDate,
-        folder.displayName,
-        mail.from?.emailAddress?.address || "",
-        mail.subject || "",
-        cleanHTML(mail.body?.content || "")
-      ]);
+  excelDate,
+  folder.displayName,
+  mail.from?.emailAddress?.address || "",
+  mail.subject || "",
+  mail.id
+]);
 
       if(mailDate > maxDate){
         maxDate = mailDate;
@@ -249,6 +253,35 @@ async function loadEmails(token){
     "Correos añadidos: " + filas.length;
 }
 
+
+
+
+
+async function openMail(token, id){
+
+  let response = await fetch(
+    "https://graph.microsoft.com/v1.0/me/messages/" + id,
+    {
+      headers:{
+        Authorization:`Bearer ${token}`
+      }
+    }
+  );
+
+  let mail = await response.json();
+
+  output.innerHTML =
+    "<h2>" + mail.subject + "</h2>" +
+    "<p><b>From:</b> " + mail.from.emailAddress.address + "</p>" +
+    "<hr>" +
+    cleanHTML(mail.body.content);
+}
+
+
+
+
+
+
 /* =========================
    LOGIN / LOGOUT
 ========================= */
@@ -265,7 +298,11 @@ document.getElementById("login").onclick = async ()=>{
 
     let token = await getToken(account);
 
-    await loadEmails(token.accessToken);
+    if(mailId){
+      await openMail(token.accessToken, mailId);
+    } else {
+      await loadEmails(token.accessToken);
+    }
 
   }
   catch(e){
@@ -273,6 +310,9 @@ document.getElementById("login").onclick = async ()=>{
     output.innerText = "ERROR: " + e.message;
   }
 };
+
+
+
 
 document.getElementById("logout").onclick = ()=>{
   msalInstance.logoutPopup();
