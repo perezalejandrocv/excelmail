@@ -32,6 +32,14 @@ const msalConfig = {
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
 
+const accounts = msalInstance.getAllAccounts();
+
+
+if(accounts.length > 0){
+  msalInstance.setActiveAccount(accounts[0]);
+}
+
+
 const loginRequest = {
   scopes: ["User.Read", "Mail.Read", "Files.ReadWrite"]
 };
@@ -288,29 +296,26 @@ async function openMail(token, id){
 
 document.getElementById("login").onclick = async ()=>{
 
-  try{
+try {
+  let account = msalInstance.getActiveAccount();
 
-    let account = msalInstance.getActiveAccount();
+  if(!account){
+    const login = await msalInstance.loginPopup(loginRequest);
+    account = login.account;
+    msalInstance.setActiveAccount(account);
+  }
 
-if(!account){
-  let login = await msalInstance.loginPopup(loginRequest);
-  account = login.account;
-  msalInstance.setActiveAccount(account);
+  let token = await getToken(account);
+
+  if(mailId){
+    await openMail(token.accessToken, mailId);
+  } else {
+    await loadEmails(token.accessToken);
+  }
+
+} catch(e) {
+  console.error(e);
 }
-
-    let token = await getToken(account);
-
-    if(mailId){
-      await openMail(token.accessToken, mailId);
-    } else {
-      await loadEmails(token.accessToken);
-    }
-
-  }
-  catch(e){
-    console.error(e);
-    output.innerText = "ERROR: " + e.message;
-  }
 };
 
 
