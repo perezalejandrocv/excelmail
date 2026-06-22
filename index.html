@@ -82,6 +82,11 @@ const output = document.getElementById("output");
 const urlParams = new URLSearchParams(window.location.search);
 const mailId = urlParams.get("id");
 
+if(mailId){
+  localStorage.setItem("pendingMailId", mailId);
+}
+
+
 
 async function getToken(account){
   return await msalInstance.acquireTokenSilent({
@@ -330,6 +335,7 @@ async function openMail(token, id){
 document.getElementById("login").onclick = async ()=>{
 
 try {
+
   let account = msalInstance.getActiveAccount();
 
   if(!account){
@@ -340,15 +346,25 @@ try {
 
   let token = await getToken(account);
 
+  const storedMailId = localStorage.getItem("pendingMailId");
+
+  if(storedMailId){
+    localStorage.removeItem("pendingMailId");
+    await openMail(token.accessToken, storedMailId);
+    return;
+  }
+
   if(mailId){
     await openMail(token.accessToken, mailId);
-  } else {
-    await loadEmails(token.accessToken);
+    return;
   }
+
+  await loadEmails(token.accessToken);
 
 } catch(e) {
   console.error(e);
 }
+
 };
 
 
@@ -357,6 +373,8 @@ try {
 document.getElementById("logout").onclick = ()=>{
   msalInstance.logoutPopup();
 };
+
+
 
 
 
@@ -370,20 +388,22 @@ window.addEventListener("load", async ()=>{
     return;
   }
 
-  try{
-    let token = await getToken(account);
+  let token = await getToken(account);
 
-    if(mailId){
-      await openMail(token.accessToken, mailId);
-    } else {
-      await loadEmails(token.accessToken);
-    }
+  const storedMailId = localStorage.getItem("pendingMailId");
 
-  } catch(e){
-    console.error(e);
-    output.innerText = "ERROR: " + e.message;
+  if(storedMailId){
+    localStorage.removeItem("pendingMailId");
+    await openMail(token.accessToken, storedMailId);
+    return;
   }
 
+  if(mailId){
+    await openMail(token.accessToken, mailId);
+    return;
+  }
+
+  await loadEmails(token.accessToken);
 });
 
 
