@@ -5,6 +5,39 @@
 <meta charset="UTF-8">
 <title>ExcelMail Bridge</title>
 <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
+
+
+
+
+
+<style>
+  body {
+    font-family: Arial;
+  }
+
+  #output {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 100%;
+  }
+
+  h2 {
+    margin-bottom: 10px;
+  }
+
+  hr {
+    margin: 10px 0;
+  }
+</style>
+
+
+
+
+
+
+
+
 </head>
 
 <body>
@@ -324,6 +357,40 @@ try {
 document.getElementById("logout").onclick = ()=>{
   msalInstance.logoutPopup();
 };
+
+
+
+window.addEventListener("load", async ()=>{
+
+  let account = msalInstance.getActiveAccount()
+    || msalInstance.getAllAccounts()[0];
+
+  if(!account){
+    output.innerText = "Pulsa Iniciar sesión";
+    return;
+  }
+
+  try{
+    let token = await getToken(account);
+
+    if(mailId){
+      await openMail(token.accessToken, mailId);
+    } else {
+      await loadEmails(token.accessToken);
+    }
+
+  } catch(e){
+    console.error(e);
+    output.innerText = "ERROR: " + e.message;
+  }
+
+});
+
+
+
+
+
+
 
 </script>
 
