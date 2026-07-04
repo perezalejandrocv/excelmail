@@ -156,6 +156,7 @@ async function getAllFolders(token) {
 ========================= */
 
 async function getFolderMessages(token, folder, inicio) {
+
   let url =
     "https://graph.microsoft.com/v1.0/me/mailFolders/" +
     folder.id +
@@ -168,6 +169,12 @@ async function getFolderMessages(token, folder, inicio) {
   });
 
   let data = await response.json();
+
+  console.log("=================================");
+  console.log("Carpeta:", folder.displayName);
+  console.log("Mensajes devueltos:", data.value?.length || 0);
+  console.log("Hay siguiente página:", data["@odata.nextLink"] ? "SÍ" : "NO");
+
   return data.value || [];
 }
 
