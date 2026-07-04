@@ -178,6 +178,13 @@ async function getFolderMessages(token, folder, inicio) {
   return data.value || [];
 }
 
+
+if (folder.displayName === "CV") {
+    console.log("Consultando CV desde:", inicio);
+}
+
+
+
 /* =========================
    EXCEL
 ========================= */
@@ -225,6 +232,17 @@ async function loadEmails(token) {
 
   let lastSyncDate = await getLastSync(token);
   let inicio = new Date(lastSyncDate.getTime() + 2000).toISOString();
+
+
+console.log("LAST_SYNC:", lastSyncDate);
+console.log("Filtro inicio:", inicio);
+
+
+
+
+
+
+
 
   output.innerText = "Buscando correos nuevos...";
 
