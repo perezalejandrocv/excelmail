@@ -175,13 +175,18 @@ async function getFolderMessages(token, folder, inicio) {
   console.log("Mensajes devueltos:", data.value?.length || 0);
   console.log("Hay siguiente página:", data["@odata.nextLink"] ? "SÍ" : "NO");
 
-  return data.value || [];
-}
 
 
 if (folder.displayName === "CV") {
     console.log("Consultando CV desde:", inicio);
 }
+
+
+
+  return data.value || [];
+}
+
+
 
 
 
