@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
 <meta charset="UTF-8">
 <title>ExcelMail Bridge</title>
@@ -18,6 +19,7 @@ body {
   font-size: 12px;
 }
 </style>
+
 </head>
 
 <body>
@@ -37,7 +39,9 @@ const msalConfig = {
     authority: "https://login.microsoftonline.com/consumers",
     redirectUri: "https://perezalejandrocv.github.io/excelmail/"
   },
-  cache: { cacheLocation: "localStorage" }
+  cache: {
+    cacheLocation: "localStorage"
+  }
 };
 
 const msalInstance = new msal.PublicClientApplication(msalConfig);
@@ -51,7 +55,9 @@ const output = document.getElementById("output");
 const urlParams = new URLSearchParams(window.location.search);
 const mailId = urlParams.get("id");
 
-if (mailId) localStorage.setItem("pendingMailId", mailId);
+if (mailId) {
+  localStorage.setItem("pendingMailId", mailId);
+}
 
 /* ================= TOKEN ================= */
 
@@ -62,7 +68,19 @@ async function getToken(account) {
   });
 }
 
-/* ================= SYNC STATE ================= */
+/* ================= CLEAN ================= */
+
+function cleanHTML(html) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<p.*?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
+/* ================= SYNC ================= */
 
 async function getLastSync(token) {
   let res = await fetch(
@@ -79,7 +97,7 @@ async function getLastSync(token) {
     return new Date((raw - 25569) * 86400000);
 
   if (typeof raw === "string" && raw.includes("/")) {
-    let [d,m,y] = raw.split("/");
+    let [d, m, y] = raw.split("/");
     return new Date(`${y}-${m}-${d}T00:00:00Z`);
   }
 
@@ -105,28 +123,20 @@ async function getAllFolders(token) {
   return folders;
 }
 
-/* ================= MAIL CACHE ================= */
-
-const seenIds = new Set();
-
 /* ================= MESSAGES ================= */
 
 async function getFolderMessages(token, folder, inicio) {
 
   let url =
-    `https://graph.microsoft.com/v1.0/me/mailFolders/${folder.id}/messages` +
-    `?$filter=receivedDateTime gt ${inicio}` +
-    `&$orderby=receivedDateTime asc` +
-    `&$select=subject,from,receivedDateTime,body,id`;
+    "https://graph.microsoft.com/v1.0/me/mailFolders/" +
+    folder.id +
+    "/messages?$filter=receivedDateTime gt " + inicio +
+    "&$orderby=receivedDateTime asc" +
+    "&$select=subject,from,receivedDateTime,body,id";
 
   let res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` }
   });
-
-  if (!res.ok) {
-    console.log("ERROR:", await res.text());
-    return [];
-  }
 
   let data = await res.json();
 
@@ -141,9 +151,12 @@ async function getFolderMessages(token, folder, inicio) {
   return data.value || [];
 }
 
-/* ================= EXCEL ================= */
+/* ================= EXCEL (BATCH FIX) ================= */
 
 async function appendExcel(token, filas) {
+
+  console.log("ENVIANDO A EXCEL:", filas.length);
+
   let res = await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
     {
@@ -156,10 +169,13 @@ async function appendExcel(token, filas) {
     }
   );
 
-  console.log("Excel status:", res.status);
+  console.log("STATUS:", res.status);
+
+  let text = await res.text();
+  console.log("RESPUESTA EXCEL:", text);
 }
 
-/* ================= SYNC UPDATE ================= */
+/* ================= UPDATE ================= */
 
 async function updateLastSync(token, date) {
   let excelSerial = (date.getTime() / 86400000) + 25569;
@@ -183,27 +199,22 @@ async function loadEmails(token) {
 
   output.innerText = "Leyendo LAST_SYNC...";
 
-  let lastSync = await getLastSync(token);
+  let lastSyncDate = await getLastSync(token);
+  let inicio = new Date(lastSyncDate.getTime() + 2000).toISOString();
 
-  // 🔥 IMPORTANTE: ventana hacia atrás (evita pérdidas)
-  let inicio = new Date(lastSync.getTime() - 120000).toISOString();
-
-  console.log("LAST_SYNC:", lastSync);
+  console.log("LAST_SYNC:", lastSyncDate);
   console.log("FILTRO:", inicio);
 
   let folders = await getAllFolders(token);
 
   let filas = [];
-  let maxDate = lastSync;
+  let maxDate = lastSyncDate;
 
   for (let folder of folders) {
 
     let mails = await getFolderMessages(token, folder, inicio);
 
     for (let mail of mails) {
-
-      if (seenIds.has(mail.id)) continue;
-      seenIds.add(mail.id);
 
       let mailDate = new Date(mail.receivedDateTime);
 
@@ -219,8 +230,19 @@ async function loadEmails(token) {
     }
   }
 
+  /* ================= BATCH INSERT FIX ================= */
+
   if (filas.length) {
-    await appendExcel(token, filas);
+
+    const BATCH = 20;
+
+    for (let i = 0; i < filas.length; i += BATCH) {
+      const chunk = filas.slice(i, i + BATCH);
+      console.log("Insertando lote:", chunk.length);
+
+      await appendExcel(token, chunk);
+    }
+
     await updateLastSync(token, maxDate);
   }
 
@@ -239,7 +261,6 @@ document.getElementById("login").onclick = async () => {
   }
 
   let token = await getToken(account);
-
   await loadEmails(token.accessToken);
 };
 
