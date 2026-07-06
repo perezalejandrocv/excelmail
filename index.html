@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 
@@ -259,6 +258,18 @@ async function loadEmails(token) {
       if (mailDate > maxDate) maxDate = mailDate;
     }
   }
+
+
+console.log("Total filas:", filas.length);
+
+const cv = filas.filter(f => f[1] === "CV");
+console.log("Mensajes de CV:", cv.length);
+console.table(cv);
+
+
+
+
+
 
   if (filas.length) {
 
