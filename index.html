@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -177,7 +178,7 @@ async function getFolderMessages(token, folder, inicio) {
 
 async function appendExcel(token, filas) {
 
-  console.log("Enviando", filas.length, "filas a Excel");
+  console.log("Enviando", filas.length, "filas");
 
   const response = await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
@@ -191,10 +192,13 @@ async function appendExcel(token, filas) {
     }
   );
 
-  console.log("Excel status:", response.status);
+  console.log("Status:", response.status);
+
+  const texto = await response.text();
+  console.log(texto);
 
   if (!response.ok) {
-    console.log(await response.text());
+    throw new Error(texto);
   }
 }
 
