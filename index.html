@@ -157,19 +157,21 @@ async function getAllFolders(token) {
 
 async function getFolderMessages(token, folder, inicio) {
   let url =
-    "https://graph.microsoft.com/v1.0/me/mailFolders/" +
-    folder.id +
-    "/messages?$filter=receivedDateTime gt " + inicio +
-    "&$orderby=receivedDateTime asc" +
-    "&$select=subject,from,receivedDateTime,body";
+  "https://graph.microsoft.com/v1.0/me/mailFolders/" +
+  folder.id +
+  "/messages?$filter=receivedDateTime gt " + inicio +
+  "&$orderby=receivedDateTime asc" +
+  "&$select=id,subject,from,receivedDateTime,body";
 
   let response = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
   let data = await response.json();
-  return data.value || [];
-}
+
+console.log(folder.displayName, data.value?.length || 0);
+
+return data.value || [];
 
 /* =========================
    EXCEL
@@ -261,13 +263,6 @@ async function loadEmails(token) {
 
 
 console.log("Total filas:", filas.length);
-
-const cv = filas.filter(f => f[1] === "CV");
-console.log("Mensajes de CV:", cv.length);
-console.table(cv);
-
-
-
 
 
 
