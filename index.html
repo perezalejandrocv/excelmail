@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 
@@ -277,16 +276,29 @@ console.log("Total filas:", filas.length);
 
   console.log("Total filas:", filas.length);
 
-  for (let i = 0; i < filas.length; i += TAM_LOTE) {
+for (let i = 0; i < filas.length; i += TAM_LOTE) {
 
-    const lote = filas.slice(i, i + TAM_LOTE);
+  const numeroLote = Math.floor(i / TAM_LOTE) + 1;
+  const lote = filas.slice(i, i + TAM_LOTE);
 
+  console.log(`========== LOTE ${numeroLote} ==========`);
+
+  lote.forEach((fila, indice) => {
     console.log(
-      `Lote ${Math.floor(i / TAM_LOTE) + 1}: ${lote.length} filas`
+      `${indice + 1}.`,
+      {
+        carpeta: fila[1],
+        remitente: fila[2],
+        asunto: fila[3],
+        id: fila[4]
+      }
     );
+  });
 
-    await appendExcel(token, lote);
-  }
+  console.log(`========== FIN LOTE ${numeroLote} ==========`);
+
+  await appendExcel(token, lote);
+}
 
   await updateLastSync(token, maxDate);
 }
