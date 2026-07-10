@@ -284,15 +284,10 @@ for (let i = 0; i < filas.length; i += TAM_LOTE) {
   console.log(`========== LOTE ${numeroLote} ==========`);
 
   lote.forEach((fila, indice) => {
-    console.log(
-      `${indice + 1}.`,
-      {
-        carpeta: fila[1],
-        remitente: fila[2],
-        asunto: fila[3],
-        id: fila[4]
-      }
-    );
+
+console.log(
+  `${indice + 1}. ${fila[1]} | ${fila[2]} | ${fila[3]} | ${fila[4]}`
+);
   });
 
   console.log(`========== FIN LOTE ${numeroLote} ==========`);
