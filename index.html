@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -176,12 +177,66 @@ return data.value || [];
 }
 
 
+/* =========================
+   EXCEL SESSION
+========================= */
+
+async function createExcelSession(token) {
+
+  const response = await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/createSession",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        persistChanges: true
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  console.log("Excel Session creada:", data.id);
+
+  if (!response.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data.id;
+}
+
+
+async function closeExcelSession(token, sessionId) {
+
+  const response = await fetch(
+    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/closeSession",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "Workbook-Session-Id": sessionId
+      }
+    }
+  );
+
+  console.log("Excel Session cerrada:", response.status);
+
+}
+
+
+
+
+
 
 /* =========================
    EXCEL
 ========================= */
 
-async function appendExcel(token, filas) {
+async function appendExcel(token, filas, sessionId) {
 
   console.log("Enviando", filas.length, "filas");
 
@@ -191,15 +246,19 @@ async function appendExcel(token, filas) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Workbook-Session-Id": sessionId
       },
-      body: JSON.stringify({ values: filas })
+      body: JSON.stringify({
+        values: filas
+      })
     }
   );
 
   console.log("Status:", response.status);
 
   const texto = await response.text();
+
   console.log(texto);
 
   if (!response.ok) {
@@ -211,7 +270,8 @@ async function appendExcel(token, filas) {
    UPDATE SYNC
 ========================= */
 
-async function updateLastSync(token, date) {
+async function updateLastSync(token, date, sessionId) {
+
   let excelSerial = (date.getTime() / 86400000) + 25569;
 
   await fetch(
@@ -220,9 +280,12 @@ async function updateLastSync(token, date) {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Workbook-Session-Id": sessionId
       },
-      body: JSON.stringify({ values: [[excelSerial]] })
+      body: JSON.stringify({
+        values: [[excelSerial]]
+      })
     }
   );
 }
@@ -272,6 +335,8 @@ console.log("Total filas:", filas.length);
 
   if (filas.length) {
 
+  const sessionId = await createExcelSession(token);
+
   const TAM_LOTE = 20;
 
   console.log("Total filas:", filas.length);
@@ -292,10 +357,15 @@ console.log(
 
   console.log(`========== FIN LOTE ${numeroLote} ==========`);
 
-  await appendExcel(token, lote);
+  await appendExcel(token, lote, sessionId);
 }
 
-  await updateLastSync(token, maxDate);
+  await updateLastSync(token, maxDate, sessionId);
+
+  await closeExcelSession(token, sessionId);
+
+
+
 }
 
   output.innerText = "Correos añadidos: " + filas.length;
