@@ -156,22 +156,34 @@ async function getAllFolders(token) {
 ========================= */
 
 async function getFolderMessages(token, folder, inicio) {
+
+  let mensajes = [];
+
   let url =
-  "https://graph.microsoft.com/v1.0/me/mailFolders/" +
-  folder.id +
-  "/messages?$filter=receivedDateTime gt " + inicio +
-  "&$orderby=receivedDateTime asc" +
-  "&$select=id,subject,from,receivedDateTime,body";
+    "https://graph.microsoft.com/v1.0/me/mailFolders/" +
+    folder.id +
+    "/messages?$filter=receivedDateTime gt " + inicio +
+    "&$orderby=receivedDateTime asc" +
+    "&$top=100" +
+    "&$select=id,subject,from,receivedDateTime,body";
 
-  let response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  while (url) {
 
-  let data = await response.json();
+    let response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-console.log(folder.displayName, data.value?.length || 0);
+    let data = await response.json();
 
-return data.value || [];
+    mensajes.push(...(data.value || []));
+
+    url = data["@odata.nextLink"];
+  }
+
+
+  console.log(folder.displayName, mensajes.length);
+
+  return mensajes;
 
 }
 
@@ -297,7 +309,8 @@ async function loadEmails(token) {
   output.innerText = "Leyendo LAST_SYNC...";
 
   let lastSyncDate = await getLastSync(token);
-  let inicio = new Date(lastSyncDate.getTime() - 24*60*60*1000).toISOString();
+
+  let inicio = lastSyncDate.toISOString();
 
   output.innerText = "Buscando correos nuevos...";
 
