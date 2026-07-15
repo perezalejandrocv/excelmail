@@ -310,6 +310,8 @@ async function loadEmails(token) {
 
   let lastSyncDate = await getLastSync(token);
 
+console.log("LAST_SYNC leído:", lastSyncDate.toISOString());
+
   let inicio = lastSyncDate.toISOString();
 
   output.innerText = "Buscando correos nuevos...";
@@ -336,7 +338,17 @@ async function loadEmails(token) {
         mail.id
       ]);
 
-      if (mailDate > maxDate) maxDate = mailDate;
+      if (mailDate > maxDate) {
+    maxDate = mailDate;
+
+    console.log(
+        "Nuevo MAX:",
+        mailDate.toISOString(),
+        mail.id
+    );
+}
+
+
     }
   }
 
@@ -372,9 +384,15 @@ console.log(
   await appendExcel(token, lote, sessionId);
 }
 
-  await updateLastSync(token, maxDate, sessionId);
 
-  await closeExcelSession(token, sessionId);
+console.log("MAX DATE:", maxDate.toISOString());
+
+await updateLastSync(token, maxDate, sessionId);
+
+const comprobacion = await getLastSync(token);
+console.log("LAST_SYNC guardado:", comprobacion.toISOString());
+
+await closeExcelSession(token, sessionId);
 
 
 
