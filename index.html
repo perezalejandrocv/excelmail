@@ -389,10 +389,16 @@ console.log("MAX DATE:", maxDate.toISOString());
 
 await updateLastSync(token, maxDate, sessionId);
 
-const comprobacion = await getLastSync(token);
-console.log("LAST_SYNC guardado:", comprobacion.toISOString());
-
 await closeExcelSession(token, sessionId);
+
+console.log("Sesión cerrada. Verificando LAST_SYNC...");
+
+const comprobacion = await getLastSync(token);
+
+console.log(
+  "LAST_SYNC guardado:",
+  comprobacion.toISOString()
+);
 
 
 
