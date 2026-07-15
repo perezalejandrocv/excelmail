@@ -283,7 +283,7 @@ async function appendExcel(token, filas, sessionId) {
 
 async function updateLastSync(token, date, sessionId) {
 
-  let excelSerial = (date.getTime() / 86400000) + 25569;
+  let excelSerial = ((date.getTime() + 2000) / 86400000) + 25569;
 
   await fetch(
     "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/worksheets('Hoja3')/range(address='B1')",
