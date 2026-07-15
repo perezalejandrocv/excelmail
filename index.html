@@ -181,7 +181,7 @@ async function getFolderMessages(token, folder, inicio) {
   }
 
 
-  console.log(folder.displayName, mensajes.length);
+  
 
   return mensajes;
 
@@ -210,7 +210,7 @@ async function createExcelSession(token) {
 
   const data = await response.json();
 
-  console.log("Excel Session creada:", data.id);
+  
 
   if (!response.ok) {
     throw new Error(JSON.stringify(data));
@@ -234,7 +234,7 @@ async function closeExcelSession(token, sessionId) {
     }
   );
 
-  console.log("Excel Session cerrada:", response.status);
+  
 
 }
 
@@ -249,32 +249,30 @@ async function closeExcelSession(token, sessionId) {
 
 async function appendExcel(token, filas, sessionId) {
 
-  console.log("Enviando", filas.length, "filas");
+  
 
   const response = await fetch(
-    "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        "Workbook-Session-Id": sessionId
-      },
-      body: JSON.stringify({
-        values: filas
-      })
-    }
-  );
-
-  console.log("Status:", response.status);
+  "https://graph.microsoft.com/v1.0/me/drive/root:/EXCELMAIL.xlsx:/workbook/tables/Tabla1/rows/add",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Workbook-Session-Id": sessionId
+    },
+    body: JSON.stringify({
+      values: filas
+    })
+  }
+);
 
   const texto = await response.text();
 
-  console.log(texto);
+     if (!response.ok) {
+     throw new Error(texto);
+ }
 
-  if (!response.ok) {
-    throw new Error(texto);
-  }
+  
 }
 
 /* =========================
@@ -310,7 +308,7 @@ async function loadEmails(token) {
 
   let lastSyncDate = await getLastSync(token);
 
-console.log("LAST_SYNC leído:", lastSyncDate.toISOString());
+
 
   let inicio = lastSyncDate.toISOString();
 
@@ -341,11 +339,7 @@ console.log("LAST_SYNC leído:", lastSyncDate.toISOString());
       if (mailDate > maxDate) {
     maxDate = mailDate;
 
-    console.log(
-        "Nuevo MAX:",
-        mailDate.toISOString(),
-        mail.id
-    );
+    
 }
 
 
@@ -353,7 +347,7 @@ console.log("LAST_SYNC leído:", lastSyncDate.toISOString());
   }
 
 
-console.log("Total filas:", filas.length);
+
 
 
 
@@ -363,42 +357,20 @@ console.log("Total filas:", filas.length);
 
   const TAM_LOTE = 20;
 
-  console.log("Total filas:", filas.length);
+  
 
 for (let i = 0; i < filas.length; i += TAM_LOTE) {
 
-  const numeroLote = Math.floor(i / TAM_LOTE) + 1;
   const lote = filas.slice(i, i + TAM_LOTE);
 
-  console.log(`========== LOTE ${numeroLote} ==========`);
+await appendExcel(token, lote, sessionId);
 
-  lote.forEach((fila, indice) => {
 
-console.log(
-  `${indice + 1}. ${fila[1]} | ${fila[2]} | ${fila[3]} | ${fila[4]}`
-);
-  });
-
-  console.log(`========== FIN LOTE ${numeroLote} ==========`);
-
-  await appendExcel(token, lote, sessionId);
 }
 
 
-console.log("MAX DATE:", maxDate.toISOString());
-
 await updateLastSync(token, maxDate, sessionId);
-
 await closeExcelSession(token, sessionId);
-
-console.log("Sesión cerrada. Verificando LAST_SYNC...");
-
-const comprobacion = await getLastSync(token);
-
-console.log(
-  "LAST_SYNC guardado:",
-  comprobacion.toISOString()
-);
 
 
 
